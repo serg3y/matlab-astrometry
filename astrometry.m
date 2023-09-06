@@ -152,7 +152,6 @@ classdef astrometry < handle
         catalogs   = []     % catalogs of common objects
         vargin     = []     % arguments stored at instantiation for reuse
         autoplot   = false  % when true, display annotated image on success
-        figure     = []     % last figure shown
         duration   = 0
     end
 
@@ -175,7 +174,7 @@ classdef astrometry < handle
     end
 
     methods
-        function self = astrometry(filename, varargin)
+        function obj = astrometry(filename, varargin)
             % ASTROMETRY Loads an image and identifies its objects using astrometry.net
             %
             % as = astrometry;
@@ -203,10 +202,10 @@ classdef astrometry < handle
                 if ischar(varargin{index})
                     switch varargin{index}
                         case 'catalogs'
-                            self.catalogs = varargin{index+1};
+                            obj.catalogs = varargin{index+1};
                             removeme = [removeme index index+1];
                         case 'autoplot'
-                            self.autoplot = true;
+                            obj.autoplot = true;
                             removeme = [removeme index];
                     end
                 end
@@ -215,25 +214,25 @@ classdef astrometry < handle
                 varargin(removeme) = [];
             end
             if ~isempty(varargin)
-                self.vargin = varargin;
+                obj.vargin = varargin;
             end
-            if isempty(self.catalogs)
-                self.catalogs = getcatalogs;
+            if isempty(obj.catalogs)
+                obj.catalogs = getcatalogs;
             end
 
             if nargin
                 % first try with the local plate solver
-                [self.result, filename]      = self.solve(filename, 'solve-field', varargin{:});
+                [obj.result, filename]      = obj.solve(filename, 'solve-field', varargin{:});
                 % if fails or not installed, use the web service
-                if isempty(self.result) && ~isempty(filename)
-                    self.solve(filename, 'web', varargin{:});
+                if isempty(obj.result) && ~isempty(filename)
+                    obj.solve(filename, 'web', varargin{:});
                 end
-                % image(self);
+                % image(obj);
             end
 
         end
 
-        function self = local(self, filename, varargin)
+        function obj = local(obj, filename, varargin)
             % LOCAL Loads an image and identifies its objects using local solve-field
             %
             % as = local(astrometry, file, ...);
@@ -251,13 +250,13 @@ classdef astrometry < handle
             %
             % Example:
             %   as=local(astrometry, 'M33.jpg','scale-low', 0.5, 'scale-high',2);
-            if isempty(varargin) && ~isempty(self.vargin)
-                varargin = self.vargin;
+            if isempty(varargin) && ~isempty(obj.vargin)
+                varargin = obj.vargin;
             end
-            [ret, filename] = solve(self, filename, 'solve-field', varargin{:});
+            [ret, filename] = solve(obj, filename, 'solve-field', varargin{:});
         end
 
-        function self = web(self, filename, varargin)
+        function obj = web(obj, filename, varargin)
             % WEB Loads an image and identifies its objects using web service
             %
             % as = web(astrometry, file, ...);
@@ -277,9 +276,9 @@ classdef astrometry < handle
             %
             % Example:
             %   as=web(astrometry, 'M33.jpg','scale-low', 0.5, 'scale-high',2);
-            if nargin == 1 && ~isempty(self.result) && isstruct(self.result)
+            if nargin == 1 && ~isempty(obj.result) && isstruct(obj.result)
                 % display a Sky-Map.org view of the astrometry field
-                sz = max([self.result.RA_max-self.result.RA_min self.result.Dec_max-self.result.Dec_min]);
+                sz = max([obj.result.RA_max-obj.result.RA_min obj.result.Dec_max-obj.result.Dec_min]);
                 z  = 160.*2.^(0:-1:-8); % zoom levels in deg in sky-map
                 z  = find(sz*4 > z, 1);
                 if isempty(z)
@@ -289,21 +288,21 @@ classdef astrometry < handle
                     '&show_grid=1&show_constellation_lines=1' ...
                     '&show_constellation_boundaries=1' ...
                     '&show_const_names=0&show_galaxies=1&img_source=DSS2'], ...
-                    self.result.RA/15, self.result.Dec, z);
+                    obj.result.RA/15, obj.result.Dec, z);
                 % open in system browser
                 open_system_browser(url);
             else
-                if isempty(varargin) && ~isempty(self.vargin)
-                    varargin = self.vargin;
+                if isempty(varargin) && ~isempty(obj.vargin)
+                    varargin = obj.vargin;
                 end
                 if nargin < 2 || isempty(filename)
-                    filename = self.filename;
+                    filename = obj.filename;
                 end
-                [ret, filename] = solve(self, filename, 'web', varargin{:});
+                [ret, filename] = solve(obj, filename, 'web', varargin{:});
             end
         end
 
-        function [ret, filename] = solve(self, filename, method, varargin)
+        function [ret, filename] = solve(obj, filename, method, varargin)
             % SOLVE Solve an image field. Plot further results with IMAGE method.
             %
             %  solve(astrometry, filename, method, ...)
@@ -332,8 +331,8 @@ classdef astrometry < handle
             if isempty(method), method = 'solve-field';
             end
 
-            if ishold(self)
-                disp([' current solver is RUNNING.'])
+            if ishold(obj)
+                disp(' Current solver is RUNNING.')
                 return
             end
 
@@ -341,22 +340,22 @@ classdef astrometry < handle
 
             % check if executables are available
             if isnova
-                if isempty(self.executables.client_py) || isempty(self.executables.python)
+                if isempty(obj.executables.client_py) || isempty(obj.executables.python)
                     return
                 end
             else
-                if isempty(self.executables.solve_field)
+                if isempty(obj.executables.solve_field)
                     return
                 end
             end
 
             % request image if missing
             if nargin < 2,        filename = '';            end
-            if isempty(filename), filename = self.filename; end
+            if isempty(filename), filename = obj.filename; end
             if iscell(filename)
                 ret = {};
                 for index = 1:numel(filename)
-                    ret{end+1} = solve(self, filename{index}, method, varargin{:});
+                    ret{end+1} = solve(obj, filename{index}, method, varargin{:});
                 end
                 return
             end
@@ -369,7 +368,7 @@ classdef astrometry < handle
                     '*.PNG;*.png' 'PNG image (PNG)';
                     '*.FITS;*.fits;*.FTS;*.fts' 'FITS image (FITS)';
                     '*.*',  'All Files (*.*)'}, ...
-                    [' Pick an astrophotography image to solve']);
+                    ' Pick an astrophotography image to solve');
                 if isequal(filename,0)
                     filename = '';
                     return
@@ -401,23 +400,23 @@ classdef astrometry < handle
                 filename = [];
                 return
             end
-            self.filename = filename;
+            obj.filename = filename;
 
             % build the command line
-            if isempty(self.process_dir) % first call
-                self.process_dir = tempname;
-            elseif ~isempty(dir(self.process_dir))
+            if isempty(obj.process_dir) % first call
+                obj.process_dir = tempname;
+            elseif ~isempty(dir(obj.process_dir))
                 % clean any previous annotation
-                rmdir(self.process_dir, 's');
+                rmdir(obj.process_dir, 's');
             end
-            if ~isfold(self.process_dir)
-                mkdir(self.process_dir);
+            if ~isfold(obj.process_dir)
+                mkdir(obj.process_dir);
             end
-            d=self.process_dir;
+            d=obj.process_dir;
 
             if isnova
                 % is there an API_KEY ? request it if missing...
-                if isempty(self.api_key) && isempty(getenv('AN_API_KEY'))
+                if isempty(obj.api_key) && isempty(getenv('AN_API_KEY'))
                     % request the API_KEY via a dialogue
                     op.Resize      = 'on';
                     op.WindowStyle = 'normal';
@@ -431,12 +430,12 @@ classdef astrometry < handle
                     if isempty(answer)
                         return
                     end
-                    self.api_key = answer{1};
+                    obj.api_key = answer{1};
                 end
 
-                cmd = [self.executables.python ' ' self.executables.client_py ' --wait'];
-                if ~isempty(self.api_key)
-                    cmd = [cmd ' --apikey=' self.api_key];
+                cmd = [obj.executables.python ' ' obj.executables.client_py ' --wait'];
+                if ~isempty(obj.api_key)
+                    cmd = [cmd ' --apikey=' obj.api_key];
                 end
                 cmd = [cmd ' --upload='   filename];
                 cmd = [cmd ' --annotate=' fullfile(d, 'results.json')];
@@ -444,16 +443,16 @@ classdef astrometry < handle
                 cmd = [cmd ' --kmz='      fullfile(d, 'results.kml')];
                 cmd = [cmd ' --corr='     fullfile(d, 'results.corr')];
             else
-                cmd = [self.executables.solve_field];
+                cmd = [obj.executables.solve_field];
                 cmd = [cmd ' ' filename];
-                if ~isempty(self.executables.sextractor)
+                if ~isempty(obj.executables.sextractor)
                     cmd = [cmd ' --use-sextractor']; % highly improves annotation efficiency
                 end
                 cmd = [cmd ' --dir '      d];
                 cmd = [cmd ' --new-fits ' fullfile(d, 'results.fits')];
                 cmd = [cmd ' --rdls '     fullfile(d, 'results.rdls')];
                 cmd = [cmd ' --corr '     fullfile(d, 'results.corr') ' --tag-all'];
-                if ~isempty(self.executables.wcs2kml)
+                if ~isempty(obj.executables.wcs2kml)
                     cmd = [cmd ' --kmz '      fullfile(d, 'results.kml') ' --no-tweak'];
                 end
             end
@@ -465,7 +464,7 @@ classdef astrometry < handle
                 for f = 1:numel(varargin)
                     if ischar(varargin{f}) && f < numel(varargin) && any(strcmp(varargin{f}, {'findobj' 'goto' 'obj' 'object'}))
                         if ischar(varargin{f+1})
-                            obj = self.findobj(varargin{f+1});
+                            obj = obj.findobj(varargin{f+1});
                         elseif isstruct(varargin{f+1})
                             obj = varargin{f+1};
                         end
@@ -497,9 +496,9 @@ classdef astrometry < handle
                             end
                         else
                             if strcmp(varargin{f}, 'scale-lower')
-                                varargin{f}='scale-low';
+                                varargin{f} = 'scale-low';
                             elseif strcmp(varargin{f}, 'scale-upper')
-                                varargin{f}='scale-high';
+                                varargin{f} = 'scale-high';
                             end
                         end
                         cmd = [cmd ' --' varargin{f} '=' num2str(varargin{f+1})];
@@ -509,28 +508,28 @@ classdef astrometry < handle
 
             % execute command
             disp(cmd)
-            self.status    = 'running';
-            self.starttime = clock;
-            notify(self, 'busy');
+            obj.status    = 'running';
+            obj.starttime = clock;
+            notify(obj, 'busy');
             disp([' ' method ' please wait (may take e.g. few minutes)...'])
 
             % create the timer for auto update
-            if isempty(self.timer) || ~isa(self,timer, 'timer') || ~isvalid(self.timer)
-                self.timer = timer('TimerFcn', @TimerCallback, 'Period', 5.0, 'ExecutionMode', 'fixedDelay', 'UserData', self, 'Name', mfilename);
+            if isempty(obj.timer) || ~isa(obj,timer, 'timer') || ~isvalid(obj.timer)
+                obj.timer = timer('TimerFcn', @TimerCallback, 'Period', 5.0, 'ExecutionMode', 'fixedDelay', 'UserData', obj, 'Name', mfilename);
             end
-            if strcmp(self.timer.Running, 'off')
-                start(self.timer);
+            if strcmp(obj.timer.Running, 'off')
+                start(obj.timer);
             end
 
             % launch a Java asynchronous command
-            self.process_java = java.lang.Runtime.getRuntime().exec(cmd);
+            obj.process_java = java.lang.Runtime.getRuntime().exec(cmd);
 
             % we shall monitor the completion with a timer
-            notify(self, 'annotationStart');
+            notify(obj, 'annotationStart');
             ret = cmd;
         end
 
-        function ret = load(self, d, varargin)
+        function ret = load(obj, d, varargin)
             % LOAD Load astrometry files (WCS,FITS) from a directory
             %   LOAD(astrometry, directory);
             %   The directory may contain WCS, CORR, RDLS or JSON, and image.
@@ -538,56 +537,56 @@ classdef astrometry < handle
             %
             %   LOAD(astrometry, image, ...) starts solve-plate annotation, same as SOLVE.
             if nargin < 2
-                d = self.process_dir;
+                d = obj.process_dir;
             end
             if ~isfold(d)
                 % loading an image ?
                 try
                     im = imread(d);
-                    solve(self, d, varargin{:});
+                    solve(obj, d, varargin{:});
                     return
                 end
             end
 
-            self.result = getresult(d, self);
-            if isempty(self.result)
-                self.status = 'failed';
-                self.process_java = [];
+            obj.result = getresult(d, obj);
+            if isempty(obj.result)
+                obj.status = 'failed';
+                obj.process_java = [];
             else
-                self.status = 'success';
+                obj.status = 'success';
                 % is the image available ? use one from the directory
-                if ~exist(self.filename, 'file')
+                if ~exist(obj.filename, 'file')
                     % search in the result directory
-                    d = [dir(fullfile(self.result.dir, '*.png')); dir(fullfile(self.result.dir, '*.fits'))];
+                    d = [dir(fullfile(obj.result.dir, '*.png')); dir(fullfile(obj.result.dir, '*.fits'))];
                     if ~isempty(d)
                         d = d(1);
-                        self.filename = fullfile(self.result.dir, d.name);
+                        obj.filename = fullfile(obj.result.dir, d.name);
                     end
                 end
             end
-            ret = self.result;
+            ret = obj.result;
         end
 
-        function ret=getstatus(self)
+        function ret = getstatus(obj)
             % GETSTATUS Return the astrometry status (success, failed)
-            ret=self.status;
+            ret = obj.status;
         end
 
-        function st = ishold(self)
+        function st = ishold(obj)
             % ISHOLD get the solver status (IDLE, BUSY)
             %   st = ISHOLD(s) returns 1 when the solver is BUSY.
-            st = ~isempty(self.process_java);
+            st = ~isempty(obj.process_java);
         end
 
-        function fig = plot(self, varargin)
+        function fig = plot(obj, varargin)
             % PLOT Show the solve-plate image with annotations. Same as image.
             %
             %   as=astrometry(file);
             %   plot(as);
-            fig = image(self, varargin{:});
+            fig = image(obj, varargin{:});
         end
 
-        function fig = image(self, mag)
+        function fig = image(obj, mag)
             % IMAGE Show the solve-plate image with annotations
             %   IMAGE(as, mag) limits the objects up to given magnitude.
             %
@@ -597,25 +596,24 @@ classdef astrometry < handle
             if nargin < 2, mag = inf; end
 
             fig = [];
-            if ~ischar(self.filename) || isempty(self.filename) || isempty(dir(self.filename))
+            if ~ischar(obj.filename) || isempty(obj.filename) || isempty(dir(obj.filename))
                 return
             end
             try
-                im  = imread(self.filename);
+                im  = imread(obj.filename);
             catch ME
                 getReport(ME)
-                disp([mfilename  ': ERROR: can not read image ' self.filename])
+                disp([mfilename  ': ERROR: can not read image ' obj.filename])
                 return
             end
-            fig = figure('Name', [' ' self.filename]);
-            self.figure = fig;
+            fig = figure('Name', [' ' obj.filename]);
             image(im);
             clear im;
 
-            ret = self.result;
+            ret = obj.result;
 
             % set title
-            [p,f,e] = fileparts(self.filename);
+            [p,f,e] = fileparts(obj.filename);
             if isfield(ret, 'Constellation')
                 title([f e ' in ' ret.Constellation]);
             else
@@ -623,11 +621,11 @@ classdef astrometry < handle
             end
 
             % overlay results
-            if ~isempty(self.result) && strcmp(self.status, 'success') && isfield(self.result, 'RA_hms')
+            if ~isempty(obj.result) && strcmp(obj.status, 'success') && isfield(obj.result, 'RA_hms')
 
                 hold on
                 % central coordinates
-                sz = self.result.size/2;
+                sz = obj.result.size/2;
                 h  = plot(sz(1), sz(2), 'r+'); set(h, 'MarkerSize', 16);
                 hcmenu = uicontextmenu;
                 uimenu(hcmenu, 'Label', '<html><b>Field center</b></html>');
@@ -637,7 +635,7 @@ classdef astrometry < handle
                 set(h, 'UIContextMenu', hcmenu);
 
                 % get list of visible objects
-                v = visible(self, mag);
+                v = visible(obj, mag);
 
                 % make sure we do not plot too many
                 if numel(v) > 1500
@@ -684,15 +682,16 @@ classdef astrometry < handle
             end
         end
 
-        function [x,y] = sky2xy(self, ra,dec)
+        function [x,y] = sky2xy(obj, ra,dec)
             % SKY2XY Convert RA,Dec coordinates to x,y pixels on image
             %
             % input:
             %   ra,dec: RA and Dec [deg]
             % output:
             %   x,y:    pixel coordinates
-            x = []; y = [];
-            if isempty(self.result)
+            x = [];
+            y = [];
+            if isempty(obj.result)
                 return
             end
             if ~isscalar(ra)
@@ -701,11 +700,10 @@ classdef astrometry < handle
             if ~isscalar(dec)
                 dec = getdec(dec);
             end
-            [x,y] = sky2xy_tan(self.result.wcs.meta, ...
-                ra*pi/180, dec*pi/180);                         % MAAT Ofek (private)
+            [x,y] = sky2xy_tan(obj.result.wcs.meta, ra*pi/180, dec*pi/180); % MAAT Ofek (private)
         end
 
-        function [ra,dec] = xy2sky(self, x, y, str)
+        function [ra,dec] = xy2sky(obj, x, y, str)
             % XY2SKY Convert pixel image coordinates to RA,Dec
             %
             % input:
@@ -714,7 +712,7 @@ classdef astrometry < handle
             % output:
             %   ra,dec: RA and Dec [deg]
             ra = []; dec = [];
-            if isempty(self.result)
+            if isempty(obj.result)
                 return
             end
             if nargin > 3
@@ -722,7 +720,7 @@ classdef astrometry < handle
             else
                 str = false;
             end
-            [ra, dec] = xy2sky_tan(self.result.wcs.meta, x,y); % MAAT Ofek (private)
+            [ra, dec] = xy2sky_tan(obj.result.wcs.meta, x,y); % MAAT Ofek (private)
             ra  = rad2deg(ra);
             dec = rad2deg(dec);
             if str
@@ -731,22 +729,22 @@ classdef astrometry < handle
             end
         end
 
-        function found = findobj(self, name)
+        function found = findobj(obj, name)
             % FINDOBJ Find a given object in catalogs.
-            catalogs = fieldnames(self.catalogs);
+            catalog_names = fieldnames(obj.catalogs);
             found = [];
 
             % check first for name without separator
             if ~any(name == ' ')
                 [n1, n2] = strtok(name, '0123456789');
-                found = findobj(self, [n1 ' ' n2]);
+                found = findobj(obj, [n1 ' ' n2]);
                 if ~isempty(found)
                     return
                 end
             end
             namel = strtrim(lower(name));
-            for f = catalogs(:)'
-                catalog = self.catalogs.(f{1});
+            for f = catalog_names(:)'
+                catalog = obj.catalogs.(f{1});
                 if ~isfield(catalog, 'MAG')
                     continue
                 end
@@ -783,8 +781,8 @@ classdef astrometry < handle
                 else
                     fprintf('  %s: Magnitude: %.1f ; Type: %s\n', found.catalog, found.MAG, found.TYPE )
                 end
-                if ~isempty(self.result) && isfield(self.result, 'RA_hms')
-                    ret = self.result;
+                if ~isempty(obj.result) && isfield(obj.result, 'RA_hms')
+                    ret = obj.result;
                     if ret.RA_min <= found.RA && found.RA <= ret.RA_max && ret.Dec_min<= found.DEC && found.DEC <= ret.Dec_max
                         disp(['    ' found.NAME ' is within the image field.'])
                     end
@@ -794,7 +792,7 @@ classdef astrometry < handle
             end
         end
 
-        function v = visible(self, mag)
+        function v = visible(obj, mag)
             %List visible objects in image
             %  visible(as) 
             %  visible(as,mag) limits the objects up to given magnitude
@@ -802,13 +800,13 @@ classdef astrometry < handle
             v = [];
             if nargin < 2, mag = inf; end
 
-            if ~isempty(self.result) && isfield(self.result, 'RA_hms')
+            if ~isempty(obj.result) && isfield(obj.result, 'RA_hms')
 
-                ret = self.result;
+                ret = obj.result;
 
                 for catalogs_names = {'stars' 'deep_sky_objects'}
                     % find all objects from data base within bounds
-                    catalog = self.catalogs.(catalogs_names{1});
+                    catalog = obj.catalogs.(catalogs_names{1});
 
                     found = find(ret.RA_min <= catalog.RA & catalog.RA <= ret.RA_max & ret.Dec_min<= catalog.DEC & catalog.DEC <= ret.Dec_max & catalog.MAG <= mag);
 
@@ -819,7 +817,7 @@ classdef astrometry < handle
                         obj   = found(index);
                         ra    = catalog.RA(obj);
                         dec   = catalog.DEC(obj);
-                        [x,y] = self.sky2xy(ra, dec);
+                        [x,y] = obj.sky2xy(ra, dec);
 
                         % ignore when not on image
                         if x < 1 || x > ret.size(1) || y < 1 || y > ret.size(2)
@@ -853,7 +851,7 @@ classdef astrometry < handle
 
                 % display the list
                 if nargout == 0
-                    disp(self.filename)
+                    disp(obj.filename)
                     disp 'TYPE            MAG  RA              DEC                 DIST  NAME'
                     for index = 1:numel(v)
                         this = v(index);
@@ -863,7 +861,7 @@ classdef astrometry < handle
             end
         end
 
-        function disp(self)
+        function disp(obj)
             % DISP Display Astrometry object (details)
 
             if ~isempty(inputname(1))
@@ -871,17 +869,17 @@ classdef astrometry < handle
             else
                 iname = 'ans';
             end
-            if isdeployed || ~usejava('jvm') || ~usejava('desktop'), id=class(self);
+            if isdeployed || ~usejava('jvm') || ~usejava('desktop'), id=class(obj);
             else
-                id = ['<a href="matlab:doc ' class(self) '">' class(self) '</a> ' ...
-                    '(<a href="matlab:methods ' class(self) '">methods</a>,' ...
+                id = ['<a href="matlab:doc ' class(obj) '">' class(obj) '</a> ' ...
+                    '(<a href="matlab:methods ' class(obj) '">methods</a>,' ...
                     '<a href="matlab:image(' iname ');">plot</a>,' ...
                     '<a href="matlab:visible(' iname ');">visible...</a>)'];
             end
-            fprintf('%s = %s for "%s":\n', iname, id, self.filename)
-            if ~isempty(self.result) && strcmp(self.status, 'success') && isfield(self.result, 'RA_hms')
+            fprintf('%s = %s for "%s":\n', iname, id, obj.filename)
+            if ~isempty(obj.result) && strcmp(obj.status, 'success') && isfield(obj.result, 'RA_hms')
                 % get list of visible objects, extract brightest star and DSO
-                v = visible(self);
+                v = visible(obj);
                 mag = [inf inf];  % star, dso
                 name= {''  ''};
 
@@ -899,39 +897,39 @@ classdef astrometry < handle
                         name{obj_index} = [this.NAME ' ' this.TYPE];
                     end
                 end
-                if isfield(self.result, 'Constellation')
-                    disp(['  Constellation: ' self.result.Constellation])
+                if isfield(obj.result, 'Constellation')
+                    disp(['  Constellation: ' obj.result.Constellation])
                 end
-                disp(['  RA:            ' self.result.RA_hms  ' [h:min:s]; '   num2str(self.result.RA)  ' [deg]'])
-                disp(['  DEC:           ' self.result.Dec_dms ' [deg:min:s]; ' num2str(self.result.Dec) ' [deg]'])
+                disp(['  RA:            ' obj.result.RA_hms  ' [h:min:s]; '   num2str(obj.result.RA)  ' [deg]'])
+                disp(['  DEC:           ' obj.result.Dec_dms ' [deg:min:s]; ' num2str(obj.result.Dec) ' [deg]'])
                 for index = 1:2
                     if ~isempty(name{index})
                         disp(['    magnitude ' num2str(mag(index)) ' ' name{index}])
                     end
                 end
-                disp(['  Rotation:      ' num2str(self.result.rotation)    ' [deg] (to get sky view)']);
-                disp(['  Pixel scale:   ' num2str(self.result.pixel_scale) ' [arcsec/pixel]']);
+                disp(['  Rotation:      ' num2str(obj.result.rotation)    ' [deg] (to get sky view)']);
+                disp(['  Pixel scale:   ' num2str(obj.result.pixel_scale) ' [arcsec/pixel]']);
                 if isdeployed || ~usejava('jvm') || ~usejava('desktop')
-                    disp(['  Results are in ' self.process_dir]);
+                    disp(['  Results are in ' obj.process_dir]);
                 else
-                    disp(['  Results are in <a href="' self.process_dir '">' self.process_dir '</a>']);
+                    disp(['  Results are in <a href="' obj.process_dir '">' obj.process_dir '</a>']);
                 end
-                builtin('disp',self)
+                builtin('disp',obj)
                 disp([iname '.result:'])
-                disp(self.result);
-            elseif isfold(self.process_dir)
+                disp(obj.result);
+            elseif isfold(obj.process_dir)
                 if isdeployed || ~usejava('jvm') || ~usejava('desktop')
-                    disp(['  ' upper(self.status) ' in ' self.process_dir]);
+                    disp(['  ' upper(obj.status) ' in ' obj.process_dir]);
                 else
-                    disp(['  ' upper(self.status) ' in <a href="' self.process_dir '">' self.process_dir '</a>']);
+                    disp(['  ' upper(obj.status) ' in <a href="' obj.process_dir '">' obj.process_dir '</a>']);
                 end
             else
-                disp(['  ' upper(self.status) ': use annotate(as,''filename'').']);
+                disp(['  ' upper(obj.status) ': use annotate(as,''filename'').']);
             end
 
         end
 
-        function display(self)
+        function display(obj)
             % DISPLAY Display Astrometry object (short)
 
             if ~isempty(inputname(1))
@@ -940,54 +938,54 @@ classdef astrometry < handle
                 iname = 'ans';
             end
             if isdeployed || ~usejava('jvm') || ~usejava('desktop')
-                id = class(self);
+                id = class(obj);
             else
-                id = ['<a href="matlab:doc ' class(self) '">' class(self) '</a> ' ...
-                    '(<a href="matlab:methods ' class(self) '">methods</a>,' ...
+                id = ['<a href="matlab:doc ' class(obj) '">' class(obj) '</a> ' ...
+                    '(<a href="matlab:methods ' class(obj) '">methods</a>,' ...
                     '<a href="matlab:image(' iname ');">plot</a>,' ...
                     '<a href="matlab:disp(' iname ');">more...</a>)'];
             end
-            if ishold(self)
-                fprintf('%s = %s for "%s" BUSY\n',iname, id, self.filename)
+            if ishold(obj)
+                fprintf('%s = %s for "%s" BUSY\n',iname, id, obj.filename)
             else
-                fprintf('%s = %s for "%s"\n',iname, id, self.filename)
+                fprintf('%s = %s for "%s"\n',iname, id, obj.filename)
             end
         end
 
-        function waitfor(self)
+        function waitfor(obj)
             % WAITFOR Waits for completion of the annotation
-            while ishold(self)
+            while ishold(obj)
                 pause(5)
             end
         end
 
-        function stop(self)
+        function stop(obj)
             % STOP Ends any current annotation and reset the object.
             % clear the timer
-            if ~isempty(self.timer) && isa(self.timer, 'timer')
-                stop(self.timer);
-                delete(self.timer);
+            if ~isempty(obj.timer) && isa(obj.timer, 'timer')
+                stop(obj.timer);
+                delete(obj.timer);
             end
-            self.timer = [];
-            p = self.process_java;
+            obj.timer = [];
+            p = obj.process_java;
             if ~isempty(p) && isjava(p)
                 try
                     p.destroy;
                     disp([mfilename  ': abort current annotation...'])
                 end
             end
-            self.process_java = [];
-            self.status = 'failed';
+            obj.process_java = [];
+            obj.status = 'failed';
         end
 
-        function c = get_catalogs(self)
+        function c = get_catalogs(obj)
             % GET_CATALOGS Get the loaded catalogs
-            c = self.catalogs;
+            c = obj.catalogs;
         end
 
-        function st = get_state(self)
+        function st = get_state(obj)
             % GET_STATE Return the astrometry state, e.g. BUSY, FAILED, SUCCESS.
-            st = self.status;
+            st = obj.status;
         end
 
     end
@@ -995,7 +993,7 @@ classdef astrometry < handle
 end
 
 
-function ret = getresult(d, self)
+function ret = getresult(d, obj)
 % getresult: extract WCS and star matching information from the output files.
 %
 % input:
@@ -1039,8 +1037,8 @@ for file = {'results.wcs' 'wcs.fits'}
             ret.Dec_max = max(Dec);
 
             % identify constellation we are in
-            [m, index] = min( (ret.RA - self.catalogs.constellations.RA).^2 + (ret.Dec- self.catalogs.constellations.DEC).^2 );
-            ret.Constellation = self.catalogs.constellations.Name{index};
+            [m, index] = min( (ret.RA - obj.catalogs.constellations.RA).^2 + (ret.Dec- obj.catalogs.constellations.DEC).^2 );
+            ret.Constellation = obj.catalogs.constellations.Name{index};
         end
     end
 end
@@ -1272,18 +1270,18 @@ end
 
 function TimerCallback(src, ~)
 % TimerCallback: update status/view from timer event
-self = get(src, 'UserData');
-if isvalid(self)
+obj = get(src, 'UserData');
+if isvalid(obj)
     try
         % check if any astrometry job is running
         exitValue = 0;
-        if ~isempty(self.process_java) && isjava(self.process_java)
+        if ~isempty(obj.process_java) && isjava(obj.process_java)
             try
-                exitValue = self.process_java.exitValue; % will raise error if process still runs
+                exitValue = obj.process_java.exitValue; % will raise error if process still runs
                 active  = 0;
             catch ex %#ok<NASGU>
                 % still running
-                if isempty(self.process_java) || ~isjava(self.process_java)
+                if isempty(obj.process_java) || ~isjava(obj.process_java)
                     active  = 0;
                 else
                     active  = 1;
@@ -1292,26 +1290,26 @@ if isvalid(self)
             % not active anymore: process has ended.
             if ~active
                 if exitValue ~= 0
-                    self.result = [];
-                    self.status = 'failed';
+                    obj.result = [];
+                    obj.status = 'failed';
                 else
-                    load(self)
-                    if ~isempty(self.result) self.status = 'success';
-                    else self.status = 'failed';
+                    load(obj)
+                    if ~isempty(obj.result) obj.status = 'success';
+                    else obj.status = 'failed';
                     end
                 end
-                disp([' annotation end: ' upper(self.status) ' for ' self.filename '. exit value=' num2str(exitValue)]);
+                disp([' annotation end: ' upper(obj.status) ' for ' obj.filename '. exit value=' num2str(exitValue)]);
                 % clear the timer
-                stop(src); delete(src); self.timer = [];
-                self.process_java = [];
-                self.duration = etime(clock, self.starttime);
+                stop(src); delete(src); obj.timer = [];
+                obj.process_java = [];
+                obj.duration = etime(clock, obj.starttime);
 
-                notify(self, 'annotationEnd');
-                notify(self, 'idle');
-                if self.autoplot
-                    image(self);
-                    assignin('base', 'ans', self);
-                    out = self;
+                notify(obj, 'annotationEnd');
+                notify(obj, 'idle');
+                if obj.autoplot
+                    image(obj);
+                    assignin('base', 'ans', obj);
+                    out = obj;
                     disp(out)
                 end
                 beep
