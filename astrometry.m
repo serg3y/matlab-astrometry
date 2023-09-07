@@ -1,80 +1,106 @@
-%This class can use astrometry.net software, either installed or through an
-%internet connection, to solve astrophotography images.
+%This class is a wrapper for locally installed http://astrometry.net
+%software or the web based API, used for solve astrophotography images.
 %
-% First navigate to the matlab-astrometry directory or type:
-%  addpath /path/to/matlab-astrometry
+%Setup on Linux:
+% -On Debian/Ubuntu Linux run:
+%  sudo apt install astrometry.net astrometry-data-tycho2 sextractor
+% -To solve fields smaller than a degree also install '2MASS' database:
+%  ??? sudo apt install ???
+% -Other Linux destributions (RedHat/Arch/MacOSX) require compilation:
+%  See http://astrometry.net/doc/build.html
 %
-% Then use:
+%Setup WSL on windows:
+% See https://www.hnsky.org/linux_subsyst.htm
+% See https://learn.microsoft.com/en-us/windows/wsl/install
+% 1) Install WSL Ubuntu using windows command line, then REBOOT COMPUTER:
+%     wsl --install         %required 1st time for other commands to work!
+%     wsl --status          %show if wsl is installed, blank otherwise
+%     wsl --list            %list already installed versions
+%     wsl --list --online   %list versions that can be installed
+%     wsl --install Ubuntu -n  %install Ubuntu but do not launch it
+%     wsl                   %run the default version or print help
+%     wsl --install -d Ubuntu
+% 2) Test run a Linux command from windows cmd:
+%     wsl -e ls   
+%     wsl -- ls
+%     wsl ls
+%
+%Setup Cygwin on Windows
+% WRITE ME
+%
+%Web setup
+%   1) Install Python
+%   2) Create a 'NOVA astrometry API' key
+%   3) Enter the KEY when prompted, or set it with:
+%    as = astrometry;
+%    as.api_key = 'mykey';
+%    as.web(file, ...)
+%
+%Setup:
+% 1) Download or clone matlab-astrometry from github:
+%    https://github.com/serg3y/matlab-astrometry
+% 2) Add rootfolder to MatLab path:
+%    addpath <path>/matlab-astrometry
+%
+%Basic usage:
 %  as = astrometry;
 %    Create a solver, but does not solve.
 %    Use solve(as, file) or local(as, file) or web(as, file) afterwards.
-%
 %  as = astrometry(file, ...); image(as);
 %    Solve the given astrophotography image with local or web method.
 %    Then plot the result. Additional arguments may include name/value pairs
 %    (see example below):
-%
 %      ra:      approximate RA coordinate  (e.g. deg or  'hh:mm:ss')
 %      dec:     approximate DEC coordinate (e.g. deg or 'deg:mm:ss')
 %      radius:  approximate field size     (in deg)
 %      scale-low:   lower estimate of the field coverage (in [deg], e.g. 0.1)
 %      scale-high:  upper estimate of the field coverage (in [deg], e.g. 180)
 %      object:  name of an object on field (string, e.g. 'M 16')
-%
-%  These two syntaxes will try first any local astrometry.net installation,
-%  and if failed, the http://nova.astrometry.net/ service.
-%
-%  When the annotation has ended, an 'annotationEnd' event is triggered. You
-%  may monitor this with e.g.:
+% - These two syntaxes will try first any local astrometry.net installation,
+%   and if failed, the http://nova.astrometry.net/ service.
+% - When the annotation has ended, an 'annotationEnd' event is triggered. You
+%   may monitor this with e.g.:
 %    as = astrometry('examples/M13-2018-05-19.jpg');
 %    addlistener(as, 'annotationEnd', @(src,evt)disp('annotation just end'))
 %
-% Going further
+%Other usage:
 %  as = LOAD(as, dir); IMAGE(as);
 %    Read an existing Astrometry.net set of files stored in a given directory.
 %    The directory may contain WCS, CORR, RDLS, JSON, and image.
 %    Then plot the result. This allows to get previous data files, or obtained
 %    externally, and label them. The 'as' astrometry object must have been used
 %    to solve or import astrometry data.
-%
 %  [x,y] = SKY2XY(as, ra, dec)
 %    Convert a RA/DEC set of coordinates (in [deg] or 'hh:mm:ss'/'deg::mm:ss')
 %    into pixel coordinates on the image. The 'as' astrometry object must have
 %    been used to solve or import astrometry data.
-%
 %  [ra, dec] = XY2SKY(as, x,y)
-%  [ra, dec] = XY2SKY(as, x,y, 'string')
+%  [ra, dec] = XY2SKY(as, x,y, true)
 %    Convert pixel coordinates on the image into a RA/DEC set of coordinates
-%    (in [deg]). When given a 'string' argument, the result is given in
+%    (in [deg]). When given a true argument, the result is given in
 %    'hh:mm:ss'/'deg:mm:ss'. The 'as' astrometry object must have been used
 %    to solve or import astrometry data.
-%
 %  f = FINDOBJ(as,'object name')
 %    Return information about a named object (star, deep sky object) from the
 %    data base. Example: astrometry.findobj('M33')
-%
-%  LOCAL(as, file, ...);
+%  LOCAL(as, file, ...)
 %    Explicitly use the local 'solve-field' astrometry.net installation.
 %    See above for the additional arguments.
-%
-%  WEB(as, file, ...);
+%  WEB(as, file, ...)
 %    Explicitly use the http://nova.astrometry.net/ web service.
 %    See above for the additional arguments.
-%
 %  WEB(as)
 %    For a solved image, the corresponding sky view is displayed on
 %    http://www.sky-map.org . The 'as' astrometry object must have been used
 %    to solve or import astrometry data.
 %
-% Using results
-%   Once an image has been solved with the 'as' object, you can use the
+%Using results:
+% - Once an image has been solved with the 'as' object, you can use the
 %   astrometry results.
-%
-%   The annotation is done asynchronously, and the Matlab prompt is recovered.
+% - The annotation is done asynchronously, and the Matlab prompt is recovered.
 %   You may use getstatus(as) to inquire for the solve-plate status
 %   (running, success, failed).
 %   To wait for the end of the annotation, use waitfor(as). stop(as) aborts it.
-%
 % - as.result.RA and as.result.Dec provide the center coordinates of the
 %   field (in [deg]), while as.result.RA_hms and as.result.Dec_dms provide the
 %   'HH:MM:SS' and 'Deg:MM:SS' coordinates.
@@ -84,22 +110,22 @@
 %   as.result.Dec_min, and as.result.Dec_min.
 % - The constellation name is stored in as.result.Constellation.
 %
-% Improving the plate-solve efficiency
-%  To facilitate the plate-solve/annotation of images, you may:
-%  - specify the field size with additional arguments such as:
-%     astrometry(..., 'scale-low', 0.5, 'scale-high',2)
-%  - provide an initial guess for the location, and its range, such as:
-%     astrometry('examples/M13-2018-05-19.jpg', ...
-%       'ra','16:33:51','dec','30:39:35','radius', 2)
-%  - provide the name of an object on field, such as:
-%     astrometry('examples/M13-2018-05-19.jpg','object','m 13','radius',2)
-%  - add more star data bases (e.g. 2MASS over Tycho2).
+%Improving plate-solve efficiency:
+% To facilitate the plate-solve/annotation of images, you may:
+% - specify the field size with additional arguments such as:
+%    astrometry(..., 'scale-low', 0.5, 'scale-high',2)
+% - provide an initial guess for the location, and its range, such as:
+%    astrometry('examples/M13-2018-05-19.jpg', ...
+%      'ra','16:33:51','dec','30:39:35','radius', 2)
+% - provide the name of an object on field, such as:
+%    astrometry('examples/M13-2018-05-19.jpg','object','m 13','radius',2)
+% - add more star data bases (e.g. 2MASS over Tycho2).
 %
-% Examples
-%  as=astrometry('examples/M13-2018-05-19.jpg','scale-low', 0.5, 'scale-high',2);
-%  image(as);
+%Example:
+% as=astrometry('examples/M13-2018-05-19.jpg','scale-low', 0.5, 'scale-high',2);
+% image(as);
 %
-% Methods
+%Methods
 % - findobj   find a given object in catalogs.
 % - getstatus return the astrometry status (success, failed)
 % - image     show the solve-plate image with annotations
@@ -114,28 +140,10 @@
 % - web       loads an image and identifies its objects using web service
 % - xy2sky    convert pixel image coordinates to RA,Dec
 %
-% Installation:
-%  Local installation (recommended)
-%    On Linux systems, install the 'astrometry.net' package, as well as the
-%    'tycho2' data base. On Debian-class systems, this is achieved with:
-%       sudo apt install astrometry.net astrometry-data-tycho2 sextractor
-%    On other systems, you will most probably need to compile it.
-%    See: http://astrometry.net/doc/build.html
-%    RedHat/Arch/MacOSX have specific installation instructions.
-%    If you have images spanning on very tiny areas (e.g. much smaller than a
-%    degree), you will most probably need to install the '2MASS' data base.
-%
-%  Web service
-%    You will need Python to be installed, and to have a 'NOVA astrometry API' key.
-%    Enter the API_KEY when prompt, or set it with:
-%    as = astrometry;
-%    as.api_key = 'blah-blah';
-%    as.web(file, ...)
-%
-% Credit:
+%Credit:
 %    sky2xy and xy2sky from E. Ofek http://weizmann.ac.il/home/eofek/matlab/
 %
-% (c) E. Farhi, 2018. GPL2.
+%(c) E. Farhi, 2018. GPL2.
 
 %TODO:
 %#ok<*TNOW1,*DATST,*TRYNC>
@@ -143,27 +151,27 @@
 classdef astrometry < handle
 
     properties
-        api_key    = ''     % api-key for nova.astrometry.net
+        api_key    = ''     %api-key for nova.astrometry.net
         % example: 'kvfubnepntofzpcl' 'ghqpqhztzychczjh'
         % from: https://git.kpi.fei.tuke.sk/TP/ExplorationOfInterstellarObjects/blob/master/src/sk/tuke/fei/kpi/tp/eoio/AstrometryAPI.java
-        result     = []     % results from the annotation or empty when failed
-        filename   = ''     % the image to annotate
-        status     = 'init' % can be: running, failed, success
-        catalogs   = []     % catalogs of common objects
-        vargin     = []     % arguments stored at instantiation for reuse
-        autoplot   = false  % when true, display annotated image on success
+        result     = []     %results from the annotation or empty when failed
+        filename   = ''     %the image to annotate
+        status     = 'init' %can be: running, failed, success
+        catalogs   = []     %catalogs of common objects
+        vargin     = []     %arguments stored at instantiation for reuse
+        autoplot   = false  %when true, display annotated image on success
         duration   = 0
     end
 
-    properties (Access=private)
+    properties (Access = private)
         process_java = []
         process_dir  = []
         timer        = []
         starttime    = []
     end
 
-    properties (Constant=true)
-        executables  = find_executables  % search for executables
+    properties (Constant = true)
+        executables = find_executables  %find installed programs
     end
 
     events
@@ -222,7 +230,7 @@ classdef astrometry < handle
 
             if nargin
                 % first try with the local plate solver
-                [obj.result, filename]      = obj.solve(filename, 'solve-field', varargin{:});
+                [obj.result, filename] = obj.solve(filename, 'solve-field', varargin{:});
                 % if fails or not installed, use the web service
                 if isempty(obj.result) && ~isempty(filename)
                     obj.solve(filename, 'web', varargin{:});
@@ -682,13 +690,8 @@ classdef astrometry < handle
             end
         end
 
-        function [x,y] = sky2xy(obj, ra,dec)
-            % SKY2XY Convert RA,Dec coordinates to x,y pixels on image
-            %
-            % input:
-            %   ra,dec: RA and Dec [deg]
-            % output:
-            %   x,y:    pixel coordinates
+        function [x,y] = sky2xy(obj, ra, dec)
+            % Convert RA,Dec (deg) to x,y image pixel coordinates.
             x = [];
             y = [];
             if isempty(obj.result)
@@ -704,18 +707,13 @@ classdef astrometry < handle
         end
 
         function [ra,dec] = xy2sky(obj, x, y, str)
-            % XY2SKY Convert pixel image coordinates to RA,Dec
-            %
-            % input:
-            %   x,y:    pixel coordinates
-            %   str: when
-            % output:
-            %   ra,dec: RA and Dec [deg]
-            ra = []; dec = [];
+            % Convert x,y image pixel to RA,Dec (deg) coordinates.
+            ra = [];
+            dec = [];
             if isempty(obj.result)
                 return
             end
-            if nargin > 3
+            if nargin > 3 && str == "string"
                 str = true;
             else
                 str = false;
@@ -724,13 +722,13 @@ classdef astrometry < handle
             ra  = rad2deg(ra);
             dec = rad2deg(dec);
             if str
-                ra = getra( ra/15,  'string');
-                dec= getdec(dec, 'string');
+                ra = getra (ra/15, true);
+                dec= getdec(dec,   true);
             end
         end
 
         function found = findobj(obj, name)
-            % FINDOBJ Find a given object in catalogs.
+            % Find a given object in catalogs.
             catalog_names = fieldnames(obj.catalogs);
             found = [];
 
@@ -824,8 +822,8 @@ classdef astrometry < handle
                             continue
                         end
 
-                        this.RA   = getra(ra/15, 'string');
-                        this.DEC  = getdec(dec,  'string');
+                        this.RA   = getra(ra/15, true);
+                        this.DEC  = getdec(dec,  true);
                         this.NAME = catalog.NAME{obj};
                         this.TYPE = catalog.TYPE{obj};
                         this.MAG  = catalog.MAG(obj);
@@ -1016,8 +1014,8 @@ for file = {'results.wcs' 'wcs.fits'}
             [ret.RA, ret.Dec] = xy2sky_tan(ret.wcs.meta, sz(1), sz(2)); % MAAT Ofek (private)
             ret.RA       = rad2deg(ret.RA);
             ret.Dec      = rad2deg(ret.Dec);
-            ret.RA_hms   = getra(ret.RA/15, 'string');
-            ret.Dec_dms  = getdec(ret.Dec, 'string');
+            ret.RA_hms   = getra(ret.RA/15,true);
+            ret.Dec_dms  = getdec(ret.Dec, true);
             
             ret.pixel_scale = sqrt(abs(wcs.CD1_1 * wcs.CD2_2  - wcs.CD1_2 * wcs.CD2_1))*3600; %pixel scale (arcsec/pixel)
             
@@ -1064,65 +1062,50 @@ end
 function executables = find_executables
 % find_executables: locate executables, return a structure
 
-persistent found_executables % stored here so that they are not searched for further calls
+persistent executables_cache % stored here so that they are not searched for further calls
 
-if ~isempty(found_executables)
-    executables = found_executables;
-    return
-end
-
-if ismac,      precmd = 'DYLD_LIBRARY_PATH= ;';
-elseif isunix, precmd = 'LD_LIBRARY_PATH= ; ';
-else,          precmd = '';
-end
-
-if ispc
-    ext = '.exe';
+if ~isempty(executables_cache)
+    executables = executables_cache;
 else
-    ext = '';
-end
+    if     ismac,  cmd_prefix = 'DYLD_LIBRARY_PATH= ;';
+    elseif isunix, cmd_prefix = 'LD_LIBRARY_PATH= ; ';
+    else,          cmd_prefix = '';
+    end
+    if ispc, ext = '.exe';
+    else,    ext = '';      %linux
+    end
+    root_fold = fileparts(mfilename('fullpath'));
 
-executables = [];
-this_path   = fullfile(fileparts(which(mfilename)));
-
-% what we may use
-for exe = {'solve-field' 'sextractor' 'python' 'python3' 'wcs2kml' 'client.py'}
-    for try_target = {fullfile(this_path, [exe{1} ext]), fullfile(this_path,exe{1}), [exe{1} ext], exe{1}}
-
-        if exist(try_target{1}, 'file')
-            status = 0;
-            result = 'OK';
-        else
-            [status, result] = system([precmd try_target{1} ' --version']); % run from Matlab
-        end
-
-        name = strrep(exe{1}, '-', '_');
-        name = strrep(name  , '.', '_');
-
-        if status ~= 127
-            % the executable is found
+    % Searching for installed programs
+    fprintf('Searching for available programs:\n') %progress
+    for exe = ["solve-field" "sextractor" "python" "python3" "wcs2kml" "client.py"] %try these programs
+        for cmd = [fullfile(root_fold,exe+ext) fullfile(root_fold,exe) exe+ext exe] %try these calls
+            if isfile(cmd)
+                err = 0;
+            else
+                [err,~] = system(cmd_prefix + cmd + " --version"); %run from Matlab
+            end
+            name = regexprep(exe, {'-' '\.'}, '_');
             if strcmp(name, 'python3')
                 name = 'python';
             end
-            executables.(name) = try_target{1};
-            disp([' found ' exe{1} ' as ' try_target{1}])
-            break
-        else
-            executables.(name) = [];
+            if ~err %executable is found, possible errors 1,127,9009
+                executables.(name) = cmd;
+                break
+            else
+                executables.(name) = [];
+            end
         end
+        fprintf(' %12s: %s\n', exe, executables.(name)) %progress
     end
+    executables_cache = executables; %cache results
 end
-found_executables = executables;
 end
 
-function [ra_h, ra_min, ra_s] = getra(ra, str)
+function [ra_h, ra_min, ra_s] = getra(ra, asstring)
 % getra: convert any input RA (in hours) into h and min
 
-if nargin > 1
-    str = true;
-else
-    str = false;
-end
+if nargin < 2 || isempty(asstring), asstring = false; end
 if ischar(ra)
     ra = repradec(ra);
 end
@@ -1155,7 +1138,7 @@ else
     disp(ra)
 end
 if nargout == 1
-    if str
+    if asstring
         ra_h = [num2str(ra_h) ':' num2str(ra_min) ':' num2str(ra_s)];
     else
         ra_h = ra_h+ra_min/60 + ra_s/3600;
@@ -1165,14 +1148,10 @@ elseif nargout == 2
 end
 end
 
-function [dec_deg, dec_min, dec_s] = getdec(dec, str)
-% getdec: convert any input DEC into deg and min
+function [dec_deg, dec_min, dec_s] = getdec(dec, asstring)
+% Convert any input DEC into deg and min
 
-if nargin > 1
-    str = true;
-else
-    str = false;
-end
+if nargin < 2 || isempty(asstring), asstring = false; end
 if ischar(dec)
     dec = repradec(dec);
 end
@@ -1204,7 +1183,7 @@ else
     fprintf(2,' invalid DEC: %g\n',dec)
 end
 if nargout == 1
-    if str
+    if asstring
         dec_deg = [num2str(dec_deg) ':' num2str(dec_min) ':' num2str(dec_s)];
     else
         dec_deg = dec_deg + dec_min/60 + dec_s/3600;
