@@ -1,32 +1,42 @@
-%This class is a wrapper for locally installed http://astrometry.net
-%software or the web based API, used for solve astrophotography images.
+%This class is used for plate solving astrophotography images by running
+%<a href=http://astrometry.net>astrometry.net</a>, using either localy installed software or the web version.
 %
-%Setup on Linux:
-% -On Debian/Ubuntu Linux run:
-%  sudo apt install astrometry.net astrometry-data-tycho2 sextractor
-% -To solve fields smaller than a degree also install '2MASS' database:
-%  ??? sudo apt install ???
-% -Other Linux destributions (RedHat/Arch/MacOSX) require compilation:
-%  See http://astrometry.net/doc/build.html
+%Setup astrometry.net on Windows using WSL:
+% -Install Ubuntu from windows command line:
+%   wsl --install           %installs the default distro (probably Ubuntu)
+%   wsl --status            %shows if wsl is installed, blank otherwise
+%   wsl --list              %list already installed distro(s)
+%   wsl --list --online     %list versions that can be installed
+%   wsl --install Ubuntu -n %install Ubuntu but do not launch it
+%   wsl                     %run the default distro or print help
+%   wsl --install -d Ubuntu
+%   Note: If windows does ont have update 22H2 it may not have WSL feature.
+%   Note: "wsl --install" may need to run before other commands will work.
+% -Reboot computer after installing Ubuntu
+% -Install astrometry.net, from Ubuntu run:
+%   sudo apt udate                    %required for next step
+%   sudo apt install astrometry.net   %install astrometry software
+% -Download index files down to 10% of the FOV, eg 5' for 0.8° FOV:
+%   sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
+%   sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
+%   sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
+%   sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
+%   Note: This downloads the 4200-series from: http://data.astrometry.net
+%         The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
+%         The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
+% -Install Source-Extractor software:
+%   sudo apt install sextractor
+% See also:
+%  https://www.hnsky.org/linux_subsyst.htm
+%  https://github.com/Jusas/astrometry-api-lite#installation
+%  https://learn.microsoft.com/en-us/windows/wsl/install
+%  https://packages.debian.org/source/bookworm/astrometry-data-2mass
+%  http://data.astrometry.net/
 %
-%Setup WSL on windows:
-% See https://www.hnsky.org/linux_subsyst.htm
-% See https://learn.microsoft.com/en-us/windows/wsl/install
-% 1) Install WSL Ubuntu using windows command line, then REBOOT COMPUTER:
-%     wsl --install         %required 1st time for other commands to work!
-%     wsl --status          %show if wsl is installed, blank otherwise
-%     wsl --list            %list already installed versions
-%     wsl --list --online   %list versions that can be installed
-%     wsl --install Ubuntu -n  %install Ubuntu but do not launch it
-%     wsl                   %run the default version or print help
-%     wsl --install -d Ubuntu
-% 2) Test run a Linux command from windows cmd:
-%     wsl -e ls   
-%     wsl -- ls
-%     wsl ls
-%
-%Setup Cygwin on Windows
-% WRITE ME
+%Test:
+% !bash -c "solve-field /mnt/d/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2"
+% !wsl  -e  solve-field /mnt/d/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
+% !wsl      solve-field /mnt/d/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
 %
 %Web setup
 %   1) Install Python
@@ -37,10 +47,10 @@
 %    as.web(file, ...)
 %
 %Setup:
-% 1) Download or clone matlab-astrometry from github:
-%    https://github.com/serg3y/matlab-astrometry
-% 2) Add rootfolder to MatLab path:
-%    addpath <path>/matlab-astrometry
+%-Download or clone matlab-astrometry from github:
+% https://github.com/serg3y/matlab-astrometry
+%-Add rootfolder to MatLab path:
+% addpath <path>/matlab-astrometry
 %
 %Basic usage:
 %  as = astrometry;
@@ -122,23 +132,23 @@
 % - add more star data bases (e.g. 2MASS over Tycho2).
 %
 %Example:
-% as=astrometry('examples/M13-2018-05-19.jpg','scale-low', 0.5, 'scale-high',2);
+% as=astrometry('examples/M13-2018-05-19.jpg','scale-low',0.5,'scale-high',2);
 % image(as);
 %
-%Methods
-% - findobj   find a given object in catalogs.
-% - getstatus return the astrometry status (success, failed)
-% - image     show the solve-plate image with annotations
-% - load      load astrometry files (WCS,FITS) from a directory
-% - local     loads an image and identifies its objects using local solve-field
-% - plot      show the solve-plate image with annotations. Same as image.
-% - sky2xy    convert RA,Dec coordinates to x,y pixels on image
-% - solve     solve an image field. Plot further results with IMAGE method.
-% - stop      ends any current annotation and reset the object.
-% - visible   return/display all visible objects on image
-% - waitfor   waits for completion of the annotation
-% - web       loads an image and identifies its objects using web service
-% - xy2sky    convert pixel image coordinates to RA,Dec
+%Methods:
+%  findobj   find a given object in catalogs.
+%  getstatus return the astrometry status (success, failed)
+%  image     show the solve-plate image with annotations
+%  load      load astrometry files (WCS,FITS) from a directory
+%  local     loads an image and identifies its objects using local solve-field
+%  plot      show the solve-plate image with annotations. Same as image.
+%  sky2xy    convert RA,Dec coordinates to x,y pixels on image
+%  solve     solve an image field. Plot further results with IMAGE method.
+%  stop      ends any current annotation and reset the object.
+%  visible   return/display all visible objects on image
+%  waitfor   waits for completion of the annotation
+%  web       loads an image and identifies its objects using web service
+%  xy2sky    convert pixel image coordinates to RA,Dec
 %
 %Credit:
 %    sky2xy and xy2sky from E. Ofek http://weizmann.ac.il/home/eofek/matlab/
@@ -151,16 +161,14 @@
 classdef astrometry < handle
 
     properties
-        api_key    = ''     %api-key for nova.astrometry.net
-        % example: 'kvfubnepntofzpcl' 'ghqpqhztzychczjh'
-        % from: https://git.kpi.fei.tuke.sk/TP/ExplorationOfInterstellarObjects/blob/master/src/sk/tuke/fei/kpi/tp/eoio/AstrometryAPI.java
-        result     = []     %results from the annotation or empty when failed
-        filename   = ''     %the image to annotate
-        status     = 'init' %can be: running, failed, success
-        catalogs   = []     %catalogs of common objects
-        vargin     = []     %arguments stored at instantiation for reuse
-        autoplot   = false  %when true, display annotated image on success
-        duration   = 0
+        api_key  = ''     %api-key for nova.astrometry.net, eg 'kvfubnepntofzpcl' 'ghqpqhztzychczjh', from: https://git.kpi.fei.tuke.sk/TP/ExplorationOfInterstellarObjects/blob/master/src/sk/tuke/fei/kpi/tp/eoio/AstrometryAPI.java
+        result   = []     %results from the annotation or empty when failed
+        filename = ''     %the image to annotate
+        status   = 'init' %can be: running, failed, success
+        catalogs = []     %catalogs of common objects
+        vargin   = []     %arguments stored at instantiation for reuse
+        autoplot = false  %when true, display annotated image on success
+        duration = 0
     end
 
     properties (Access = private)
@@ -227,7 +235,6 @@ classdef astrometry < handle
             if isempty(obj.catalogs)
                 obj.catalogs = getcatalogs;
             end
-
             if nargin
                 % first try with the local plate solver
                 [obj.result, filename] = obj.solve(filename, 'solve-field', varargin{:});
@@ -237,9 +244,27 @@ classdef astrometry < handle
                 end
                 % image(obj);
             end
-
         end
 
+        function setup(obj)
+            if ispc
+                [a,b]=system('wsl --install Ubuntu -n') %install Ubuntu but do not launch it
+                %Reboot if installed Ubuntu
+                system('bash -c "sudo apt update"') %required for next step
+                system('bash -c "sudo apt install astrometry.net"') %install astrometry.net
+                % -Download index files down to 10% of the FOV, eg 5' for 0.8° FOV:
+                %   sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
+                %   sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
+                %   sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
+                %   sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
+                %   Note: This downloads the 4200-series from: http://data.astrometry.net
+                %         The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
+                %         The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
+                % -Install Source-Extractor software:
+                %   sudo apt install sextractor
+            end
+        end
+		
         function obj = local(obj, filename, varargin)
             % LOCAL Loads an image and identifies its objects using local solve-field
             %
@@ -792,7 +817,7 @@ classdef astrometry < handle
 
         function v = visible(obj, mag)
             %List visible objects in image
-            %  visible(as) 
+            %  visible(as)
             %  visible(as,mag) limits the objects up to given magnitude
 
             v = [];
@@ -1016,9 +1041,8 @@ for file = {'results.wcs' 'wcs.fits'}
             ret.Dec      = rad2deg(ret.Dec);
             ret.RA_hms   = getra(ret.RA/15,true);
             ret.Dec_dms  = getdec(ret.Dec, true);
-            
+			
             ret.pixel_scale = sqrt(abs(wcs.CD1_1 * wcs.CD2_2  - wcs.CD1_2 * wcs.CD2_1))*3600; %pixel scale (arcsec/pixel)
-            
             ret.rotation = atan2d(wcs.CD2_1, wcs.CD1_1); %rotation angle
 
             % compute RA,Dec image bounds
