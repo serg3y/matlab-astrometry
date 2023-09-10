@@ -226,6 +226,12 @@ classdef astrometry < handle
                     end
                 end
             end
+            
+            %read user setting
+            % for k = 1:2:nargin
+            %     obj.(varargin{k}) = varargin{k+1};
+            % end
+
             if ~isempty(removeme)
                 varargin(removeme) = [];
             end
