@@ -1,44 +1,13 @@
-%This class is used for plate solving astrophotography images by running
-%<a href=http://astrometry.net>astrometry.net</a> software, either localy installed or the web API.
+%This class plate solves astrophotography images by running
+%<a href=http://astrometry.net>astrometry.net</a> software, either localy or over the web.
 %
-%Setup astrometry.net on Windows using WSL:
-%-Download or clone matlab-astrometry from github:
-%  https://github.com/serg3y/matlab-astrometry
-%-Add rootfolder to MatLab path:
-%  addpath <path>/matlab-astrometry/
-%-Install Ubuntu using windows command line:
-%  wsl --install           %installs the default distro (probably Ubuntu)
-%  wsl --install Ubuntu -n %install Ubuntu but do not launch it
-%  Note: If windows does ont have update 22H2 it may not have WSL feature.
-%  Note: "wsl --install" may need to be run before other commands work.
-%-Reboot computer after installing Ubuntu
-%-Install astrometry.net, from Ubuntu run:
-%  sudo apt udate                    %required for next step
-%  sudo apt install astrometry.net   %install astrometry software
-%-Download index files down to 10% of the FOV, eg 5' for 0.8° FOV:
-%  sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
-%  sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
-%  sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
-%  sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
-%  Note: This downloads the 4200-series from: http://data.astrometry.net
-%        The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
-%        The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
-%-Install Source-Extractor software (optional, not used at the moment):
-%  sudo apt install sextractor
-%-Test (optional):
-% !bash -c "solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2"
-% !wsl  -e  solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
-% !wsl      solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
-%-Ref:
-% https://www.hnsky.org/linux_subsyst.htm
-% https://github.com/Jusas/astrometry-api-lite#installation
-% https://learn.microsoft.com/en-us/windows/wsl/install
-% https://packages.debian.org/source/bookworm/astrometry-data-2mass
-% http://data.astrometry.net/
+%Setup:
+%-Download this code from: https://github.com/serg3y/matlab-astrometry
+%-Add main folder to MatLab path: addpath <path>/matlab-astrometry/
+%-Run: astrometry().setup
 %
 %-Test2:
-% file='C:\MATLAB\matlabtoolbox.git\data\DSTG_VIS_500\32711_NAVSTAR_62_USA 201\20201214_143228.fit'
-% astrometry().solve(file)
+% astrometry().solve('D:\MatLab\matlabtoolbox.git\data\DSTG_VIS_500\32711_NAVSTAR_62_USA_201\20201214_143228.fit')
 %
 %Web setup:
 %-Install Python
@@ -127,8 +96,7 @@
 % - add more star data bases (e.g. 2MASS over Tycho2).
 %
 %Example:
-% as=astrometry('examples/M13-2018-05-19.jpg','scale-low',0.5,'scale-high',2);
-% as.plot;
+% astrometry().solve('D:\MatLab\matlab-astrometry.git\examples\M13-2018-05-19.jpg','scale-low',0.5,'scale-high',2)
 %
 %Methods:
 %  findobj   Find a given object in catalogs.
@@ -156,15 +124,17 @@
 classdef astrometry < handle
 
     properties
-        api_key   = 'kvfubnepntofzpcl' %api-key for nova.astrometry.net, eg 'kvfubnepntofzpcl' 'ghqpqhztzychczjh', from: https://git.kpi.fei.tuke.sk/TP/ExplorationOfInterstellarObjects/blob/master/src/sk/tuke/fei/kpi/tp/eoio/AstrometryAPI.java
-        result    = []  %results from the annotation or empty when failed
-        file      = ''  %image to process
-        autoplot  = 0   %when true, display annotated image on success
-        args      = []  %stored arguments for repeted use
-        data_fold = ''
+        file      = '' %input image file to process
+        autoplot  = 0  %if true, display annotated images
+        args      = [] %astrometry.net arguments for repeted use
+        data_fold = '' %folder with additional star catalogs
+        overwrite = 1  %if output exists overwrite it or skip it
+        blocking  = 0  %wait for file to finish before resuming
+        api_key   = 'kvfubnepntofzpcl' %web api-key for nova.astrometry.net, eg 'kvfubnepntofzpcl' 'ghqpqhztzychczjh' https://git.kpi.fei.tuke.sk/TP/ExplorationOfInterstellarObjects/blob/master/src/sk/tuke/fei/kpi/tp/eoio/AstrometryAPI.java
     end
 
     properties (SetAccess = protected) %read only
+        result    = []  %results from the annotation, empty if failed
         status   = 'init' %can be: running, failed, success
         duration = duration();
     end
@@ -215,65 +185,118 @@ classdef astrometry < handle
         end
 
         function setup(~,fov)
-            %Installs WSL, Ubuntu and Astrometry.net
-            if nargin<2 || ismept(fov), fov = 10; end
-            if ispc
-                % Install WSL
-                [err,msg] = system('wsl --status');
-                if err==50
-                    fprintf('Installing WSL...\n')
-                    [err,msg] = system('wsl --install --no-launch');
-                end
-                if err && contains(msg,'is not recognized')
-                    error('%s\n%s\n%s\n%s\n',msg,...
-                        'Windows update 22H2 may be needed to run WSL.',...
-                        'If Windows update 22H2 is failing perform the install using:',...
-                        'https://www.microsoft.com/en-au/software-download/windows10')
-                elseif err
-                    error('%s\n',msg)
-                end
+            %Auto install WSL, Ubuntu, Astrometry.net for Windows 10/11.
+            % astrometry().setup
+            %
+            %Manual install:
+            %-Install Ubuntu using windows command line:
+            %  wsl --install           %installs the default distro (probably Ubuntu)
+            %  wsl --install Ubuntu -n %install Ubuntu but do not launch it
+            %  Note: If windows does ont have update 22H2 it may not have WSL feature.
+            %  Note: "wsl --install" may need to be run before other commands work.
+            %-Reboot computer after installing Ubuntu
+            %-Install astrometry.net, from Ubuntu run:
+            %  sudo apt udate                    %required for next step
+            %  sudo apt install astrometry.net   %install astrometry software
+            %-Download index files down to 10% of the FOV, eg 5' for 0.8° FOV:
+            %  sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
+            %  sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
+            %  sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
+            %  sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
+            %  Note: This downloads the 4200-series from: http://data.astrometry.net
+            %        The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
+            %        The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
+            %-Install Source-Extractor software (optional, not used at the moment):
+            %  sudo apt install sextractor
+            %-Test (optional):
+            % !bash -c "solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2"
+            % !wsl  -e  solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
+            % !wsl      solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
+            %-Ref:
+            % https://www.hnsky.org/linux_subsyst.htm
+            % https://github.com/Jusas/astrometry-api-lite#installation
+            % https://learn.microsoft.com/en-us/windows/wsl/install
+            % https://packages.debian.org/source/bookworm/astrometry-data-2mass
+            % http://data.astrometry.net/
 
-                % Install Ubuntu
-                assert(~system('wsl --install --distribution Ubuntu --no-launch'))
-                assert(~system('wsl --set-default Ubuntu')) %make it default
-                
-                % Check BIOS
-                %Direct way, run: system('wsl --install &')
-                %WslRegisterDistribution failed with error: 0x80370102
-                %Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS.
-                %For information please visit https://aka.ms/enablevirtualization
-                [err,msg] = system('wsl --list'); %indirect way
-                if err==-1 && contains(msg,'no installed distributions')
-                    error('Enable CPU Virtualization in BIOS')
-                end
+            if nargin<2 || ismept(fov), fov = 0.86; end
+            % Install WSL
+            fprintf('Installing WSL\n')
+            [err,msg] = system('wsl --status');
+            if err==50
+                fprintf('Installing WSL...\n')
+                [err,msg] = system('wsl --install --no-launch');
+            end
+            if err && contains(msg,'is not recognized')
+                error('%s\n%s\n%s\n%s\n',msg,...
+                    'Windows update 22H2 may be needed to run WSL.',...
+                    'If Windows update 22H2 is failing perform the install using:',...
+                    'https://www.microsoft.com/en-au/software-download/windows10')
+            elseif err
+                error('%s\n',msg)
+            end
 
-                % Install Astrometry.net
-                assert(~system('bash -c "sudo apt update"')); %may be required for next step
-                assert(~system('bash -c "sudo apt install astrometry.net -y"')); %install astrometry.net
-                
-                % Download index files
-                %This downloads the 4200-series from: http://data.astrometry.net
-                %The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
-                %The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
-                arcmin = floor(fov/10*60); %need 10% of the FOV, eg 5 arcmin for 0.8° fov
-                if arcmin <= 19
-                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-08-19"'); %156MB
-                end
-                if arcmin <= 7
-                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-07"'); %161MB
-                end
-                if arcmin <= 6
-                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-06"'); %328MB
-                end
-                if arcmin <= 5
-                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-05"'); %659MB
-                end
+            % Install Ubuntu
+            fprintf('Installing Ubuntu\n')
+            [err,msg] = system('wsl --install --distribution Ubuntu --no-launch');
+            if ~err
+                [err,msg] = system('wsl --set-default Ubuntu'); %make Ubuntu the default
+            end
+            if err
+                error(msg)
+            end
 
-                % Install Source-Extractor
-                system('bash -c "sudo apt install sextractor"');
+            % Check BIOS
+            fprintf('Checking BIOS\n')
+            %Direct way, run: system('wsl --install &')
+            %WslRegisterDistribution failed with error: 0x80370102
+            %Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS.
+            %For information please visit https://aka.ms/enablevirtualization
+            [err,msg] = system('wsl --list'); %indirect way
+            if err==-1 && contains(msg,'no installed distributions')
+                error('Enable CPU Virtualization in BIOS')
+            elseif err
+                error(msg)
+            end
+
+            % Install Astrometry.net
+            fprintf('Installing astrometry.net\n')
+            [err,msg] = system('bash -c "sudo apt update"'); %may be required for next step
+            if ~err
+                [err,msg] = system('bash -c "sudo apt install astrometry.net -y"'); %install astrometry.net
+            else
+                error(msg)
+            end
+
+            % Download index files
+            fprintf('Download 4200-series index files from http://data.astrometry.net for fields %g°\n',fov)
+            %The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
+            %The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
+            arcmin = floor(fov/10*60); %recommended to get 10% of the FOV, so 5 arcmin for 0.86° fov
+            if arcmin <= 19
+                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-08-19"'); %156MB
+            end
+            if arcmin <= 7 && ~err
+                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-07"'); %161MB
+            end
+            if arcmin <= 6 && ~err
+                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-06"'); %328MB
+            end
+            if arcmin <= 5 && ~err
+                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-05"'); %659MB
+            end
+            if err
+                error(msg)
+            end
+
+            % Install Source-Extractor
+            fprintf('Installing Source-Extractor\n')
+            [err,msg] = system('bash -c "sudo apt install sextractor"');
+            if err
+                error(msg)
             end
         end
-		
+
         function obj = local(obj, file, varargin)
             %Solve an image field using local 'solve-field'
             % as.local(file,args)    see solve
@@ -395,7 +418,7 @@ classdef astrometry < handle
 
             % Resolve path
             f = dir(file);
-            if isempty(file)
+            if isempty(f)
                 error('File not found.')
             end
             file = fullfile(f.folder,f.name);
@@ -585,7 +608,7 @@ classdef astrometry < handle
 
         function fig = plot(obj, mag)
             %Show the solve-plate image with annotations
-            %  as.plot      
+            %  as.plot
             %  as.plot(mag)   limits the objects up to given magnitude
             %Example:
             %  astrometry(file).plot
@@ -998,7 +1021,7 @@ for file = {'results.wcs' 'wcs.fits'}
             out.Dec      = rad2deg(out.Dec);
             out.RA_hms   = getra(out.RA/15,true);
             out.Dec_dms  = getdec(out.Dec, true);
-			
+
             out.pixel_scale = sqrt(abs(wcs.CD1_1 * wcs.CD2_2  - wcs.CD1_2 * wcs.CD2_1))*3600; %pixel scale (arcsec/pixel)
             out.rotation = atan2d(wcs.CD2_1, wcs.CD1_1); %rotation angle
 
@@ -1263,116 +1286,116 @@ end
 end
 
 function [err,msg] = wsl(cmd)
-    %For some reason system commands with wsl have char(0) after every
-    %charecter in the output. This is a workaroud.
-    err = system(['wsl ' cmd ' > wsl.txt']);
-    msg = regexprep(fileread('wsl.txt'),char(0),'');
+%For some reason system commands with wsl have char(0) after every
+%charecter in the output. This is a workaroud.
+err = system(['wsl ' cmd ' > wsl.txt']);
+msg = regexprep(fileread('wsl.txt'),char(0),'');
 end
 
 
-% Solve the given astrophotography image with local or web method. 
+% Solve the given astrophotography image with local or web method.
 % Then plot the result. Additional arguments may include name/value pairs
 % (see example below):
-% 
+%
 %        - ra:      approximate RA coordinate  (e.g. deg or  'hh:mm:ss')
 %        - dec:     approximate DEC coordinate (e.g. deg or 'deg:mm:ss')
 %        - radius:  approximate field size     (in deg)
 %        - scale-low:   lower estimate of the field coverage (in [deg], e.g. 0.1)
 %        - scale-high:  upper estimate of the field coverage (in [deg], e.g. 180)
-% 
+%
 % These two syntaxes will try first any local astrometry.net installation, and
 % if failed, the http://nova.astrometry.net/ service.
-% 
+%
 %    **as.plot**
-% 
-% Plot the astrometry solution. The identified objects are indicated in green for 
+%
+% Plot the astrometry solution. The identified objects are indicated in green for
 % stars, cyan circle for extended deep sky objects, and cyan squares for localized
-% deep sky objects. Each indicated object has a contextual menu which gives more 
+% deep sky objects. Each indicated object has a contextual menu which gives more
 % information (right click). The central coordinate of the field is shown in red.
-% 
+%
 % Going further <a id=going-further></a>
 % =============
-% 
+%
 %    **as = as.load(dir); as.plot;**
-% 
+%
 % Read an existing Astrometry.net set of files stored in a given directory.
 % The directory may contain WCS, CORR, RDLS, JSON, and image.
 % Then plot the result. This allows to get previous data files, or obtained
 % externally, and label them. The 'as' astrometry object must have been used
 % to solve or import astrometry data.
-% 
+%
 %    **[x,y] = as.sky2xy(ra, dec)**
-% 
+%
 % Convert a RA/DEC set of coordinates (in [deg] or 'hh:mm:ss'/'deg::mm:ss')
-% into pixel coordinates on the image. The 'as' astrometry object must have 
+% into pixel coordinates on the image. The 'as' astrometry object must have
 % been used to solve or import astrometry data.
-% 
+%
 %    **[ra, dec] = as.xy2sky(x,y)**
-% 
+%
 %    **[ra, dec] = as.xy2sky(x,y, 'string')**
-% 
-% Convert pixel coordinates on the image into a RA/DEC set of coordinates 
-% (in [deg]). When given a 'string' argument, the result is given in 
+%
+% Convert pixel coordinates on the image into a RA/DEC set of coordinates
+% (in [deg]). When given a 'string' argument, the result is given in
 % 'hh:mm:ss'/'deg:mm:ss'. The 'as' astrometry object must have been used
 % to solve or import astrometry data.
-% 
+%
 %    **f = as.FINDOBJ('object name')**
-% 
-% Return information about a named object (star, deep sky object) from the 
+%
+% Return information about a named object (star, deep sky object) from the
 % data base. Example: astrometry().findobj('M33')
-% 
+%
 %    **as.local(file, ...);**
-% 
+%
 % Explicitly use the local astrometry.net installation.
 % See above for the additional arguments.
-% 
+%
 %    **as.web(file, ...);**
-% 
+%
 % Explicitly use the http://nova.astrometry.net/ web service.
 % See above for the additional arguments.
-% 
-% 
+%
+%
 % Using results <a id=using-results></a>
 % =============
 % Once an image has been solved with the 'as' object, you can use the astrometry results.
-% 
-% - **as.result.RA** and **as.result.Dec** provide the center coordinates of the 
-%   field (in [deg]), while **as.result.RA_hms** and **as.result.Dec_dms** provide the 
-%   'HH:MM:SS' and 'Deg:MM:SS' coordinates. 
-% - The field rotation wrt sky is stored in **as.result.rotation**. 
-% - The pixel scale is given in [arcmin/pixel] as **as.result.pixel_scale**. 
+%
+% - **as.result.RA** and **as.result.Dec** provide the center coordinates of the
+%   field (in [deg]), while **as.result.RA_hms** and **as.result.Dec_dms** provide the
+%   'HH:MM:SS' and 'Deg:MM:SS' coordinates.
+% - The field rotation wrt sky is stored in **as.result.rotation**.
+% - The pixel scale is given in [arcmin/pixel] as **as.result.pixel_scale**.
 % - The field extension is given with its bounds as **as.result.RA_min**, **as.result.RA_max**,
-%   **as.result.Dec_min**, and **as.result.Dec_min**. 
+%   **as.result.Dec_min**, and **as.result.Dec_min**.
 % - The constellation name is stored in **as.result.Constellation**.
-% 
+%
 % Improving the plate-solve efficiency <a id=improving-efficiency></a>
 % ====================================
-% 
+%
 % To facilitate the plate-solve/annotation of images, you may:
-% 
-% - specify the field size with additional arguments such as: 
+%
+% - specify the field size with additional arguments such as:
 %   `astrometry(..., 'scale-low', 0.5, 'scale-high',2)`
 %   This is what **works best**, by far.
-% 
+%
 % - provide an initial guess for the location, and its range, such as:
 %   `astrometry('examples/M33-2018-05-19.jpg','ra','01:33:51','dec','30:39:35','radius', 2)`
-% 
+%
 % - provide the name of an object on field, such as:
 %  `astrometry('examples/M13-2018-05-19.jpg','object','m 13','radius',2)`
-% 
+%
 % - add more star data bases (e.g. 2MASS over Tycho2).
-% 
+%
 % Examples <a id=examples></a>
 % ========
-% 
+%
 % ```matlab
 %   as=astrometry('examples/M33-2018-08-15.jpg','scale-low', 0.5, 'scale-high',2);
 %   as.image; % once done
 % ```
-% 
+%
 %   You will then get, in about 30 sec, the image:
 %   ![Image of Astrometry](https://github.com/farhi/matlab-astrometry/blob/master/examples/M33-solved.png)
-% 
+%
 % Methods <a id=methods></a>
 % - findobj   find a given object in catalogs.
 % - getstatus return the astrometry status (success, failed)
@@ -1386,48 +1409,48 @@ end
 % - visible   return/display all visible objects on image
 % - waitfor   waits for completion of the annotation
 % - web       loads an image and identifies its objects using web service
-% - xy2sky    convert pixel image coordinates to RA,Dec 
-% 
+% - xy2sky    convert pixel image coordinates to RA,Dec
+%
 % Installation <a id=installation></a>
 %    **Local installation (recommended)**
-% 
+%
 % On Linux systems, install the astrometry.net package, as well as the 'tycho2' data base. On Debian-class systems, this is achieved with:
-% 
+%
 % ```bash
 %   sudo apt install astrometry.net astrometry-data-tycho2 sextractor
 % ```
-% 
+%
 % On other systems, you will most probably need to compile it.
 % See: http://astrometry.net/doc/build.html
 % RedHat/Arch/MacOSX have specific installation instructions.
-% 
-% If you have images spanning on very tiny areas (e.g. much smaller than a 
+%
+% If you have images spanning on very tiny areas (e.g. much smaller than a
 % degree), you will most probably need to install the '2MASS' data base.
-% 
+%
 %    **Using the web service**
-% 
+%
 %  You will need Python to be installed, and to have a 'NOVA astrometry API' key.
 %  Enter the API_KEY when prompt, or set it with:
-% 
+%
 %  ```matlab
 %   as = astrometry;
 %   as.api_key = 'blah-blah';
 %   as.web(file, ...)
 %  ```
-% 
+%
 %    **Matlab files**
-% 
+%
 % First navigate to the matlab-astrometry directory or type:
-% 
+%
 % ```matlab
 %   addpath /path/to/matlab-astrometry
 % ```
-% 
+%
 % Credits <a id=credits></a>
 % =======
-% 
+%
 % **sky2xy** and **xy2sky** from E. Ofek http://weizmann.ac.il/home/eofek/matlab/
-% 
+%
 % (c) E. Farhi, 2019. GPL2.
 
 %NOTESL
