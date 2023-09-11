@@ -215,19 +215,22 @@ classdef astrometry < handle
         end
 
         function setup(~,fov)
+            %Installs WSL, Ubuntu and Astrometry.net
             if nargin<2 || ismept(fov), fov = 10; end
             if ispc
                 % Install WSL
-                try
-                    if system('wsl --status')==50
-                        fprintf('Installing WSL...\n')
-                        assert(~system('wsl --install --no-launch'))
-                    end
-                catch ex
-                    fprintf(2,'%s',ex.message)
-                    fprintf(2,'%s\n%s\n%s\n','Windows update 22H2 may be required to install WSL.',...
+                [err,msg] = system('wsl --status');
+                if err==50
+                    fprintf('Installing WSL...\n')
+                    [err,msg] = system('wsl --install --no-launch');
+                end
+                if err && contains(msg,'is not recognized')
+                    error('%s\n%s\n%s\n%s\n',msg,...
+                        'Windows update 22H2 may be needed to run WSL.',...
                         'If Windows update 22H2 is failing perform the install using:',...
                         'https://www.microsoft.com/en-au/software-download/windows10')
+                elseif err
+                    error('%s\n',msg)
                 end
 
                 % Install Ubuntu
