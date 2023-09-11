@@ -1,0 +1,3 @@
+This application requires the Windows Subsystem for Linux Optional Component.
+The system may need to be restarted so the changes can take effect.
+Error code: Wsl/WSL_E_WSL_OPTIONAL_COMPONENT_REQUIRED

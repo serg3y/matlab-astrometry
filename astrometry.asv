@@ -1427,4 +1427,4 @@ end
 %      '
 
 %after reboot
-% [a,b]=system('wsl --install --no-distribution') % -1, lots of text n=5667
+% [a,b]=system('wsl --install --no-distribution') % -1, lots of text
