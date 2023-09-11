@@ -234,9 +234,19 @@ classdef astrometry < handle
                 end
 
                 % Install Ubuntu
-                assert(~system('wsl --install Ubuntu --no-launch'))
+                assert(~system('wsl --install --distribution Ubuntu --no-launch'))
                 assert(~system('wsl --set-default Ubuntu')) %make it default
                 
+                % Check BIOS
+                %Direct way, run: system('wsl --install &')
+                %WslRegisterDistribution failed with error: 0x80370102
+                %Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS.
+                %For information please visit https://aka.ms/enablevirtualization
+                [err,msg] = system('wsl --list'); %indirect way
+                if err==-1 && contains(msg,'no installed distributions')
+                    error('Enable CPU Virtualization in BIOS')
+                end
+
                 % Install Astrometry.net
                 assert(~system('bash -c "sudo apt update"')); %may be required for next step
                 assert(~system('bash -c "sudo apt install astrometry.net -y"')); %install astrometry.net
