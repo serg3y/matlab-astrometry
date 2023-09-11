@@ -228,15 +228,13 @@ classdef astrometry < handle
                 end
 
                 % Install Ubuntu
+                %This command can actually install wsl and Ubuntu
                 [err,msg] = system('wsl --install Ubuntu --no-launch');
                 assert(~err && contains(msg,'Ubuntu is already installed'),msg)
 
                 % Check status
-                [a,b] = system('wsl --status');
-                if a==-1 && contains(b,'system may need to be restarted')
-                    fprintf(2,'Restart PC to finish WSL instal and run setup again.\n')
-                    return
-                end
+                [err,msg] = system('wsl --status');
+                assert(~err,msg)
                 
                 % Install Astrometry.net
                 system('bash -c "sudo apt update"'); %required for next step
