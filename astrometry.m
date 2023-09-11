@@ -217,13 +217,25 @@ classdef astrometry < handle
         function setup(~,fov)
             if nargin<2 || ismept(fov), fov = 10; end
             if ispc
+                % Install WSL
+                %Windows update 22H2 may be required to install wsl
+                %If update 22H2 fails perform the install using:
+                %https://www.microsoft.com/en-au/software-download/windows10 
+                if system('wsl --status')==50
+                    fprintf('Installing WSL, administrator privilages required...\n')
+                    [err,msg] = system('wsl --install --no-distribution');
+                    assert(~err,msg)
+                end
+
                 % Install Ubuntu
-                %If update 22H2 fails use: https://www.microsoft.com/en-au/software-download/windows10
-                [err,msg] = system('wsl --install Ubuntu -n'); %install Ubuntu, do not launch it
-                if ~err && ~contains(msg,'Ubuntu is already installed')
-                    disp(msg)
-                    fprintf(2,'Please resrt the PC and run setup again\n')
-                    return 
+                [err,msg] = system('wsl --install Ubuntu --no-launch');
+                assert(~err && contains(msg,'Ubuntu is already installed'),msg)
+
+                % Check status
+                [a,b] = system('wsl --status');
+                if a==-1 && contains(b,'system may need to be restarted')
+                    fprintf(2,'Restart PC to finish WSL instal and run setup again.\n')
+                    return
                 end
                 
                 % Install Astrometry.net
@@ -1409,17 +1421,25 @@ end
 % 
 % (c) E. Farhi, 2019. GPL2.
 
+%NOTESL
 % fprintf('Installing WSL, administrator privilages required...\n')
 % [a,b]=system('wsl --install --distribution Ubuntu --no-launch')
 
-%prior wsl --install
+%prior wsl --install ..
 % setenv('WSL_UTF8','1');
 % [a,b]=system('wsl') %1 13
 % [a,b]=system('wsl --help') %1    13
 % [a,b]=system('wsl --status') %50   []
 
-%just after wsl --install
+%just after wsl --install ..
 % [a,b]=system('wsl') %-1
+% b =
+%     'This application requires the Windows Subsystem for Linux Optional Component.
+%      The system may need to be restarted so the changes can take effect.
+%      Error code: Wsl/WSL_E_WSL_OPTIONAL_COMPONENT_REQUIRED
+%      '
+% [a,b]=system('wsl --help') %-1 lots of text, n=5667
+% [a,b]=system('wsl --status') %-1
 % b =
 %     'This application requires the Windows Subsystem for Linux Optional Component.
 %      The system may need to be restarted so the changes can take effect.
