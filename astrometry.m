@@ -218,26 +218,25 @@ classdef astrometry < handle
             if nargin<2 || ismept(fov), fov = 10; end
             if ispc
                 % Install WSL
-                %Windows update 22H2 may be required to install wsl
-                %If update 22H2 fails perform the install using:
-                %https://www.microsoft.com/en-au/software-download/windows10 
-                if system('wsl --status')==50
-                    fprintf('Installing WSL, administrator privilages required...\n')
-                    [err,msg] = system('wsl --install --no-distribution');
-                    assert(~err,msg)
+                try
+                    if system('wsl --status')==50
+                        fprintf('Installing WSL...\n')
+                        assert(~system('wsl --install --no-launch'))
+                    end
+                catch ex
+                    fprintf(2,'%s',ex.message)
+                    fprintf(2,'%s\n%s\n%s\n','Windows update 22H2 may be required to install WSL.',...
+                        'If Windows update 22H2 is failing perform the install using:',...
+                        'https://www.microsoft.com/en-au/software-download/windows10')
                 end
 
                 % Install Ubuntu
-                [err,msg] = system('wsl --install Ubuntu --no-launch');
-                assert(~err && contains(msg,'Ubuntu is already installed'),msg)
-
-                % Check status
-                [err,msg] = system('wsl --status');
-                assert(~err,msg)
+                assert(~system('wsl --install Ubuntu --no-launch'))
+                assert(~system('wsl --set-default Ubuntu')) %make it default
                 
                 % Install Astrometry.net
-                system('bash -c "sudo apt update"'); %required for next step
-                system('bash -c "sudo apt install astrometry.net -y"'); %install astrometry.net
+                assert(~system('bash -c "sudo apt update"')); %may be required for next step
+                assert(~system('bash -c "sudo apt install astrometry.net -y"')); %install astrometry.net
                 
                 % Download index files
                 %This downloads the 4200-series from: http://data.astrometry.net
