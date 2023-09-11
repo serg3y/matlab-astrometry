@@ -9,7 +9,6 @@
 %-Install Ubuntu using windows command line:
 %  wsl --install           %installs the default distro (probably Ubuntu)
 %  wsl --install Ubuntu -n %install Ubuntu but do not launch it
-%  wsl --install -d Ubuntu %???
 %  Note: If windows does ont have update 22H2 it may not have WSL feature.
 %  Note: "wsl --install" may need to be run before other commands work.
 %-Reboot computer after installing Ubuntu
@@ -218,6 +217,7 @@ classdef astrometry < handle
             if nargin<2 || ismept(fov), fov = 10; end
             if ispc
                 % Install Ubuntu
+                %If update 22H2 fails use: https://www.microsoft.com/en-au/software-download/windows10
                 [err,msg] = system('wsl --install Ubuntu -n'); %install Ubuntu, do not launch it
                 if ~err && ~contains(msg,'Ubuntu is already installed')
                     disp(msg)
