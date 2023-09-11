@@ -207,9 +207,10 @@ classdef astrometry < handle
             end
             if ispc
                 setenv('WSL_UTF8','1')
-                %Without this system('wsl cmd') returns extra null
-                %charecters which causes output msg to not display
+                %Without this [err,stdout]=system('wsl') contains nulls
+                %which causes output msg to not display
                 %https://github.com/microsoft/WSL/issues/4607#issuecomment-1197258447
+                %to restore use: setenv('WSL_UTF8','')
             end
         end
 
@@ -1407,3 +1408,19 @@ end
 % **sky2xy** and **xy2sky** from E. Ofek http://weizmann.ac.il/home/eofek/matlab/
 % 
 % (c) E. Farhi, 2019. GPL2.
+
+% fprintf('Installing WSL, administrator privilages required...\n')
+[a,b]=system('wsl --install --distribution Ubuntu --no-launch')
+--no-distribution
+
+%prior wsl --install --no
+% setenv('WSL_UTF8','1');
+% [a,b]=system('wsl');[a,b*1]
+% ans =
+%      1    13
+% [a,b]=system('wsl --help');[a,b*1]
+% ans =
+%      1    13
+% [a,b]=system('wsl --status');[a,b*1]
+% ans =
+%     50
