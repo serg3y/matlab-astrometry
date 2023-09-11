@@ -8,12 +8,8 @@
 %  addpath <path>/matlab-astrometry/
 %-Install Ubuntu using windows command line:
 %  wsl --install           %installs the default distro (probably Ubuntu)
-%  wsl --status            %shows if wsl is installed, blank otherwise
-%  wsl --list              %list already installed distro(s)
-%  wsl --list --online     %list versions that can be installed
 %  wsl --install Ubuntu -n %install Ubuntu but do not launch it
-%  wsl                     %run the default distro or print help
-%  wsl --install -d Ubuntu
+%  wsl --install -d Ubuntu %???
 %  Note: If windows does ont have update 22H2 it may not have WSL feature.
 %  Note: "wsl --install" may need to be run before other commands work.
 %-Reboot computer after installing Ubuntu
@@ -210,25 +206,49 @@ classdef astrometry < handle
             for k = 1:2:nargin
                 obj.(varargin{k}) = varargin{k+1};
             end
+            if ispc
+                setenv('WSL_UTF8','1')
+                %Without this system('wsl cmd') returns extra null
+                %charecters which causes output msg to not display
+                %https://github.com/microsoft/WSL/issues/4607#issuecomment-1197258447
+            end
         end
 
-        function setup(~)
-            %UNDER CONSTRUCTION
+        function setup(~,fov)
+            if nargin<2 || ismept(fov), fov = 10; end
             if ispc
-                [~,~] = system('wsl --install Ubuntu -n'); %install Ubuntu but do not launch it
-                %Reboot if installed Ubuntu
-                system('bash -c "sudo apt update"') %required for next step
-                system('bash -c "sudo apt install astrometry.net"') %install astrometry.net
-                % -Download index files down to 10% of the FOV, eg 5' for 0.8° FOV:
-                %   sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
-                %   sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
-                %   sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
-                %   sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
-                %   Note: This downloads the 4200-series from: http://data.astrometry.net
-                %         The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
-                %         The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
-                % -Install Source-Extractor software:
-                %   sudo apt install sextractor
+                % Install Ubuntu
+                [err,msg] = system('wsl --install Ubuntu -n'); %install Ubuntu, do not launch it
+                if ~err && ~contains(msg,'Ubuntu is already installed')
+                    disp(msg)
+                    fprintf(2,'Please resrt the PC and run setup again\n')
+                    return 
+                end
+                
+                % Install Astrometry.net
+                system('bash -c "sudo apt update"'); %required for next step
+                system('bash -c "sudo apt install astrometry.net -y"'); %install astrometry.net
+                
+                % Download index files
+                %This downloads the 4200-series from: http://data.astrometry.net
+                %The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
+                %The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
+                arcmin = floor(fov/10*60); %need 10% of the FOV, eg 5 arcmin for 0.8° fov
+                if arcmin <= 19
+                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-08-19"'); %156MB
+                end
+                if arcmin <= 7
+                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-07"'); %161MB
+                end
+                if arcmin <= 6
+                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-06"'); %328MB
+                end
+                if arcmin <= 5
+                    system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-05"'); %659MB
+                end
+
+                % Install Source-Extractor
+                system('bash -c "sudo apt install sextractor"');
             end
         end
 		
@@ -1220,8 +1240,12 @@ else
 end
 end
 
-
-
+function [err,msg] = wsl(cmd)
+    %For some reason system commands with wsl have char(0) after every
+    %charecter in the output. This is a workaroud.
+    err = system(['wsl ' cmd ' > wsl.txt']);
+    msg = regexprep(fileread('wsl.txt'),char(0),'');
+end
 
 
 % Solve the given astrophotography image with local or web method. 
