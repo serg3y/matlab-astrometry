@@ -228,7 +228,6 @@ classdef astrometry < handle
                 end
 
                 % Install Ubuntu
-                %This command can actually install wsl and Ubuntu
                 [err,msg] = system('wsl --install Ubuntu --no-launch');
                 assert(~err && contains(msg,'Ubuntu is already installed'),msg)
 
