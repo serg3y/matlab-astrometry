@@ -96,7 +96,7 @@
 % - add more star data bases (e.g. 2MASS over Tycho2).
 %
 %Example:
-% astrometry().solve('D:\MatLab\matlab-astrometry.git\examples\M13-2018-05-19.jpg','scale-low',0.5,'scale-high',2)
+% astrometry().solve('D:\MatLab\matlab-astrometry.git\examples\M13-2018-05-19.jpg','scale-low',0.5,'scale-high',2,'scale-high',0.9,'scale-low',0.8)
 %
 %Methods:
 %  findobj   Find a given object in catalogs.
@@ -349,13 +349,13 @@ classdef astrometry < handle
             %   ra: approximate RA coordinate (deg or 'hh:mm:ss')
             %   dec: approximate DEC coordinate (deg or 'deg:mm:ss')
             %   radius: approximate field size (deg)
-            %   scale-low: lower estimate of the field coverage (deg)
-            %   scale-high: upper estimate of the field coverage (deg)
+            %   scale-high: upper limit of the field of view (deg)
+            %   scale-low:  lower limit of the field of view (deg)
             %   object: name of an object on field (string, eg 'M 16')
             %Example:
             % as.solve('M33.jpg')
-            % as.solve('M33.jpg','default','ra','01:33:51','dec','30:39:35','radius', 2)
-            % as.solve('M33.jpg','default','ra','01:33:51','dec','30:39:35','radius', 2,'scale-low',0.5,'scale-high',2)
+            % as.solve('M33.jpg','default','ra','01:33:51','dec','30:39:35','radius',2)
+            % as.solve('M33.jpg','default','ra','01:33:51','dec','30:39:35','scale-low',0.5,'scale-high',2)
 
             % Defaults
             if nargin<2 || isempty(file), file = obj.file; end
