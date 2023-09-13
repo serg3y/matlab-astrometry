@@ -121,7 +121,7 @@
 %TODO:
 %#ok<*TNOW1,*DATST,*TRYNC>
 
-classdef astrometry < handle
+classdef Astrometry < handle
 
     properties
         file      = '' %input image file to process
@@ -134,16 +134,16 @@ classdef astrometry < handle
     end
 
     properties (SetAccess = protected) %read only
-        result    = []  %results from the annotation, empty if failed
+        result   = []  %results from the annotation, empty if failed
         status   = 'init' %can be: running, failed, success
         duration = duration();
     end
 
     properties (Access = private)
-        process_java = []
-        process_dir  = []
-        timer        = []
-        starttime    = []
+        process_exe = []
+        process_dir = []
+        timer       = []
+        starttime   = []
     end
 
     properties (Constant = true)
@@ -165,11 +165,11 @@ classdef astrometry < handle
 
     methods
         function obj = astrometry(varargin)
-            %Initialise the class
-            % as = astrometry
-            % as = astrometry(args)   name value pairs
+            %Initialise the class.
+            % A = Astrometry()          -use default arguments
+            % A = Astrometry(par1=val1,...)   -assign arguments
             %Example:
-            % astrometry().solve('M33.jpg','scale-low',0.5,'scale-high',2)
+            % Astrometry().solve('M33.jpg','scale-low',0.5,'scale-high',2)
 
             % Parse inputs
             for k = 1:2:nargin
@@ -220,11 +220,11 @@ classdef astrometry < handle
             % http://data.astrometry.net/
 
             if nargin<2 || ismept(fov), fov = 0.86; end
+
             % Install WSL
             fprintf('Installing WSL\n')
             [err,msg] = system('wsl --status');
             if err==50
-                fprintf('Installing WSL...\n')
                 [err,msg] = system('wsl --install --no-launch');
             end
             if err && contains(msg,'is not recognized')
@@ -247,24 +247,39 @@ classdef astrometry < handle
             end
 
             % Check BIOS
-            fprintf('Checking BIOS\n')
-            %Direct way, run: system('wsl --install &')
-            %WslRegisterDistribution failed with error: 0x80370102
-            %Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS.
-            %For information please visit https://aka.ms/enablevirtualization
+            fprintf('Checking BIOS virtualization\n')
             [err,msg] = system('wsl --list'); %indirect way
             if err==-1 && contains(msg,'no installed distributions')
                 error('Enable CPU Virtualization in BIOS')
+                %To confirm BIOS is a problem run: system('wsl --install &')
+                %WslRegisterDistribution failed with error: 0x80370102
+                %Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS.
+                %For information please visit https://aka.ms/enablevirtualization
             elseif err
                 error(msg)
             end
 
             % Install Astrometry.net
+            %In WSL install to /usr/bin/solve-field
+            %Which is somwehere in C:\Program Files\WindowsApps
+            %List executables:
+            % !bash -c "dpkg -L astrometry.net | xargs file | grep executable"
             fprintf('Installing astrometry.net\n')
             [err,msg] = system('bash -c "sudo apt update"'); %may be required for next step
             if ~err
                 [err,msg] = system('bash -c "sudo apt install astrometry.net -y"'); %install astrometry.net
-            else
+                [~,t] = system('bash -c "dpkg -L astrometry.net | xargs file | grep executable | sed s/:.*//"'); %get all executables
+                fprintf(' Executables: %s\n',regexprep(t,{'/usr/bin/','\n'},{'' '  '})) %executables list
+                %an-fitstopnm  an-pnmtofits  astrometry-engine
+                %build-astrometry-index  downsample-fits  fit-wcs
+                %fits-column-merge  fits-flip-endian  fits-guess-scale
+                %fitsgetext  get-healpix  get-wcs  hpsplit  image2xy
+                %new-wcs  pad-file  plot-constellations  plotquad  plotxy 
+                %query-starkd  solve-field  subtable  tabsort  wcs-grab
+                %wcs-match  wcs-pv2sip  wcs-rd2xy  wcs-resample  wcs-to-tan
+                %wcs-xy2rd  wcsinfo
+            end
+            if err
                 error(msg)
             end
 
@@ -486,7 +501,7 @@ classdef astrometry < handle
             end
             cmd = [cmd ' --wcs='      fullfile(fold, 'results.wcs')];
 
-            % handle arguments
+            % Handle arguments
             if nargin > 3
                 obj = [];
                 rmarg = [];
@@ -550,7 +565,7 @@ classdef astrometry < handle
             end
 
             % Launch as non blocking command
-            obj.process_java = java.lang.Runtime.getRuntime().exec(cmd);
+            obj.process_exe = java.lang.Runtime.getRuntime().exec(cmd);
 
             % Wait for completion
             obj.notify('annotationStart');
@@ -579,7 +594,7 @@ classdef astrometry < handle
             obj.result = getresult(d, obj);
             if isempty(obj.result)
                 obj.status = 'failed';
-                obj.process_java = [];
+                obj.process_exe = [];
             else
                 obj.status = 'success';
                 % is the image available ? use one from the directory
@@ -603,7 +618,7 @@ classdef astrometry < handle
         function tf = ishold(obj)
             %Returns true when the solver is 'BUSY', false of 'IDLE'
             %  tf = ishold
-            tf = ~isempty(obj.process_java);
+            tf = ~isempty(obj.process_exe);
         end
 
         function fig = plot(obj, mag)
@@ -949,14 +964,14 @@ classdef astrometry < handle
                 delete(obj.timer);
             end
             obj.timer = [];
-            p = obj.process_java;
+            p = obj.process_exe;
             if ~isempty(p) && isjava(p)
                 try
                     p.destroy;
                     disp([mfilename  ': abort current annotation...'])
                 end
             end
-            obj.process_java = [];
+            obj.process_exe = [];
             obj.status = 'failed';
         end
 
@@ -1284,14 +1299,6 @@ else
     delete(src)
 end
 end
-
-function [err,msg] = wsl(cmd)
-%For some reason system commands with wsl have char(0) after every
-%charecter in the output. This is a workaroud.
-err = system(['wsl ' cmd ' > wsl.txt']);
-msg = regexprep(fileread('wsl.txt'),char(0),'');
-end
-
 
 % Solve the given astrophotography image with local or web method.
 % Then plot the result. Additional arguments may include name/value pairs
