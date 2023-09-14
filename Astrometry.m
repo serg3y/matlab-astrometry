@@ -164,7 +164,7 @@ classdef Astrometry < handle
     end
 
     methods
-        function obj = astrometry(varargin)
+        function obj = Astrometry(varargin)
             %Initialise the class.
             % A = Astrometry()          -use default arguments
             % A = Astrometry(par1=val1,...)   -assign arguments
