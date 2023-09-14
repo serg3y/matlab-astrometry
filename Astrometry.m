@@ -248,40 +248,31 @@ classdef Astrometry < handle
 
             % Check BIOS
             fprintf('Checking BIOS virtualization\n')
-            [err,msg] = system('wsl --list'); %indirect way
+            [err,msg] = system('wsl --list'); %indirect test
             if err==-1 && contains(msg,'no installed distributions')
-                error('%s\n%s%s','Enable CPU Virtualization in BIOS',...
-                'Z8 example: restart > F1 > Esc > Bios Setup > Security > ',...
-                '%System Security > Enable Virtualisation Technology (VTx)')
-
-                %To confirm BIOS is a problem run: system('wsl --install &')
-                %WslRegisterDistribution failed with error: 0x80370102
-                %Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS.
-                %For information please visit https://aka.ms/enablevirtualization
-                
+                error('%s\n%s\n%s\n%s\n','Error: CPU Virtualization may be turned off in BIOS.',...
+                ' To confirm BIOS is the problem run: system("wsl --install &")',... should see: WslRegisterDistribution failed with error: 0x80370102, Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS...
+                ' Example HP Z8 fix: restart > F1 > Esc > Bios Setup > Security >',...
+                ' > System Security > Enable "Virtualisation Technology (VTx)"')
             elseif err
                 error(msg)
             end
 
             % Install Astrometry.net
-            %In WSL install to /usr/bin/solve-field
-            %Which is somwehere in C:\Program Files\WindowsApps
-            %List executables:
-            % !bash -c "dpkg -L astrometry.net | xargs file | grep executable"
-            fprintf('Installing astrometry.net\n')
+            fprintf('%s\n','Installing astrometry.net to /usr/bin/solve-field within C:\Program Files\WindowsApps\')
             [err,msg] = system('bash -c "sudo apt update"'); %may be required for next step
             if ~err
                 [err,msg] = system('bash -c "sudo apt install astrometry.net -y"'); %install astrometry.net
                 [~,t] = system('bash -c "dpkg -L astrometry.net | xargs file | grep executable | sed s/:.*//"'); %get all executables
-                fprintf(' Executables: %s\n',regexprep(t,{'/usr/bin/','\n'},{'' '  '})) %executables list
-                %an-fitstopnm  an-pnmtofits  astrometry-engine
-                %build-astrometry-index  downsample-fits  fit-wcs
-                %fits-column-merge  fits-flip-endian  fits-guess-scale
-                %fitsgetext  get-healpix  get-wcs  hpsplit  image2xy
-                %new-wcs  pad-file  plot-constellations  plotquad  plotxy 
-                %query-starkd  solve-field  subtable  tabsort  wcs-grab
-                %wcs-match  wcs-pv2sip  wcs-rd2xy  wcs-resample  wcs-to-tan
-                %wcs-xy2rd  wcsinfo
+                fprintf(' Executables: %s\n',regexprep(t,{'/usr/bin/','\n'},{'' '  '})) %list executables
+                % an-fitstopnm  an-pnmtofits  astrometry-engine
+                % build-astrometry-index  downsample-fits  fit-wcs
+                % fits-column-merge  fits-flip-endian  fits-guess-scale
+                % fitsgetext  get-healpix  get-wcs  hpsplit  image2xy
+                % new-wcs  pad-file  plot-constellations  plotquad  plotxy 
+                % query-starkd  solve-field  subtable  tabsort  wcs-grab
+                % wcs-match  wcs-pv2sip  wcs-rd2xy  wcs-resample
+                % wcs-to-tan wcs-xy2rd  wcsinfo
             end
             if err
                 error(msg)
@@ -291,7 +282,7 @@ classdef Astrometry < handle
             fprintf('Downloading index files: 4200-series for %g° fields from http://data.astrometry.net\n',fov)
             %The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
             %The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
-            arcmin = floor(fov/10*60); %recommended to get 10% of the FOV, so 5 arcmin for 0.86° fov
+            arcmin = floor(fov/10*60); %it is recommended to get 10% of the FOV, so 5 arcmin for 0.86° fov
             if ~err && arcmin <= 19
                 [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-08-19 -y'); %156MB
             end
@@ -314,6 +305,8 @@ classdef Astrometry < handle
             if err
                 error(msg)
             end
+
+            fprintf('Done\n')
         end
 
         function obj = local(obj, file, varargin)
