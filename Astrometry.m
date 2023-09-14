@@ -177,8 +177,8 @@ classdef Astrometry < handle
             end
             if ispc
                 setenv('WSL_UTF8','1')
-                %Without this [err,stdout]=system('wsl') contains nulls
-                %which causes output msg to not display
+                %Without this system('wsl') return nulls
+                %which causes output text to not display
                 %https://github.com/microsoft/WSL/issues/4607#issuecomment-1197258447
                 %to restore use: setenv('WSL_UTF8','')
             end
@@ -190,24 +190,24 @@ classdef Astrometry < handle
             %
             %Manual install:
             %-Install Ubuntu using windows command line:
-            %  wsl --install           %installs the default distro (probably Ubuntu)
-            %  wsl --install Ubuntu -n %install Ubuntu but do not launch it
-            %  Note: If windows does ont have update 22H2 it may not have WSL feature.
-            %  Note: "wsl --install" may need to be run before other commands work.
+            % wsl --install           %installs the default distro (probably Ubuntu)
+            % wsl --install Ubuntu -n %install Ubuntu but do not launch it
+            % Note: If windows does ont have update 22H2 it may not have WSL feature.
+            % Note: "wsl --install" may need to be run before other commands work.
             %-Reboot computer after installing Ubuntu
             %-Install astrometry.net, from Ubuntu run:
-            %  sudo apt udate                    %required for next step
-            %  sudo apt install astrometry.net   %install astrometry software
+            % sudo apt udate                    %required for next step
+            % sudo apt install astrometry.net   %install astrometry software
             %-Download index files down to 10% of the FOV, eg 5' for 0.8° FOV:
-            %  sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
-            %  sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
-            %  sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
-            %  sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
-            %  Note: This downloads the 4200-series from: http://data.astrometry.net
-            %        The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
-            %        The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
+            % sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
+            % sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
+            % sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
+            % sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
+            % Note: This downloads the 4200-series from: http://data.astrometry.net
+            %       The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
+            %       The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
             %-Install Source-Extractor software (optional, not used at the moment):
-            %  sudo apt install sextractor
+            % sudo apt install sextractor
             %-Test (optional):
             % !bash -c "solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2"
             % !wsl  -e  solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
@@ -288,21 +288,21 @@ classdef Astrometry < handle
             end
 
             % Download index files
-            fprintf('Download 4200-series index files from http://data.astrometry.net for fields %g°\n',fov)
+            fprintf('Downloading index files: 4200-series for %g° fields from http://data.astrometry.net\n',fov)
             %The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
             %The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
             arcmin = floor(fov/10*60); %recommended to get 10% of the FOV, so 5 arcmin for 0.86° fov
-            if arcmin <= 19
-                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-08-19"'); %156MB
+            if ~err && arcmin <= 19
+                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-08-19 -y'); %156MB
             end
-            if arcmin <= 7 && ~err
-                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-07"'); %161MB
+            if ~err && arcmin <= 7 
+                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-07 -y'); %161MB
             end
-            if arcmin <= 6 && ~err
-                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-06"'); %328MB
+            if ~err && arcmin <= 6
+                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-06 -y'); %328MB
             end
-            if arcmin <= 5 && ~err
-                [err,msg] = system('bash -c "sudo apt install astrometry.net astrometry-data-2mass-05"'); %659MB
+            if ~err && arcmin <= 5
+                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-05 -y'); %659MB
             end
             if err
                 error(msg)
