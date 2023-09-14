@@ -238,7 +238,7 @@ classdef Astrometry < handle
 
             % Install Ubuntu
             fprintf('Installing Ubuntu\n')
-            [err,msg] = system('wsl --install --distribution Ubuntu --no-launch');
+            [err,msg] = system('wsl --install Ubuntu --no-launch');
             if ~err
                 [err,msg] = system('wsl --set-default Ubuntu'); %make Ubuntu the default
             end
