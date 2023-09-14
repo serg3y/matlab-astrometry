@@ -250,11 +250,15 @@ classdef Astrometry < handle
             fprintf('Checking BIOS virtualization\n')
             [err,msg] = system('wsl --list'); %indirect way
             if err==-1 && contains(msg,'no installed distributions')
-                error('Enable CPU Virtualization in BIOS')
+                error('%s\n%s%s','Enable CPU Virtualization in BIOS',...
+                'Z8 example: restart > F1 > Esc > Bios Setup > Security > ',...
+                '%System Security > Enable Virtualisation Technology (VTx)')
+
                 %To confirm BIOS is a problem run: system('wsl --install &')
                 %WslRegisterDistribution failed with error: 0x80370102
                 %Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS.
                 %For information please visit https://aka.ms/enablevirtualization
+                
             elseif err
                 error(msg)
             end
