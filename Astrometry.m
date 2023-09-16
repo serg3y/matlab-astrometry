@@ -1,5 +1,5 @@
-%This class plate solves astrophotography images by running
-%<a href=http://astrometry.net>astrometry.net</a> software, either localy or over the web.
+%This class can plate solve astrophotography images by running localy
+%installed <a href=http://astrometry.net>astrometry.net</a> software.
 %
 %Setup:
 %-Download this code from: https://github.com/serg3y/matlab-astrometry
@@ -7,22 +7,13 @@
 %-Run: astrometry().setup
 %
 %-Test2:
-% astrometry().solve('D:\MatLab\matlabtoolbox.git\data\DSTG_VIS_500\32711_NAVSTAR_62_USA_201\20201214_143228.fit')
-%
-%Web setup:
-%-Install Python
-%-Create a 'NOVA astrometry API' key
-%-Enter the KEY when prompted, or set it with:
-%-Test:
-% astrometry(api_key,KEY).web(file)
+% Astrometry().solve('D:\MatLab\matlabtoolbox.git\data\DSTG_VIS_500\32711_NAVSTAR_62_USA_201\20201214_143228.fit')
 %
 %Basic usage:
-%  as = astrometry;
-%    Create a solver, but does not solve.
-%    Use solve(as, file) or local(as, file) or web(as, file) afterwards.
-%  as = astrometry(file, ...); as.plot;
-%    Solve the given astrophotography image with local or web method.
-%    Then plot the result. Additional arguments may include name/value pairs
+% as = Astrometry %create a solver, but do not solve
+% as.solve(file)  %solve astrophotography image
+% as.plot         %plot result.
+% Additional arguments may include name/value pairs
 %    (see example below):
 %      ra:      approximate RA coordinate  (e.g. deg or  'hh:mm:ss')
 %      dec:     approximate DEC coordinate (e.g. deg or 'deg:mm:ss')
@@ -30,43 +21,30 @@
 %      scale-low:   lower estimate of the field coverage (in [deg], e.g. 0.1)
 %      scale-high:  upper estimate of the field coverage (in [deg], e.g. 180)
 %      object:  name of an object on field (string, e.g. 'M 16')
-% - These two syntaxes will try first any local astrometry.net installation,
-%   and if failed, the http://nova.astrometry.net/ service.
-% - When the annotation has ended, an 'annotationEnd' event is triggered. You
-%   may monitor this with e.g.:
-%    as = astrometry('examples/M13-2018-05-19.jpg');
-%    addlistener(as, 'annotationEnd', @(src,evt)disp('annotation just end'))
 %
 %Other usage:
-%  as = LOAD(as, dir); as.plot;
+%  as = as.LOAD(dir); as.plot;
 %    Read an existing Astrometry.net set of files stored in a given directory.
 %    The directory may contain WCS, CORR, RDLS, JSON, and image.
 %    Then plot the result. This allows to get previous data files, or obtained
 %    externally, and label them. The 'as' astrometry object must have been used
 %    to solve or import astrometry data.
-%  [x,y] = SKY2XY(as, ra, dec)
+%  [x,y] = as.sky2xy(ra,dec)
 %    Convert a RA/DEC set of coordinates (in [deg] or 'hh:mm:ss'/'deg::mm:ss')
 %    into pixel coordinates on the image. The 'as' astrometry object must have
 %    been used to solve or import astrometry data.
-%  [ra, dec] = XY2SKY(as, x,y)
-%  [ra, dec] = XY2SKY(as, x,y, true)
+%  [ra, dec] = as.xy2sky(x,y)
+%  [ra, dec] = as.xy2sky(x,y,true)
 %    Convert pixel coordinates on the image into a RA/DEC set of coordinates
 %    (in [deg]). When given a true argument, the result is given in
 %    'hh:mm:ss'/'deg:mm:ss'. The 'as' astrometry object must have been used
 %    to solve or import astrometry data.
-%  f = FINDOBJ(as,'object name')
+%  f = as.findobj('object name')
 %    Return information about a named object (star, deep sky object) from the
 %    data base. Example: astrometry.findobj('M33')
-%  LOCAL(as, file, ...)
+%  as.solve(file, ...)
 %    Explicitly use the local astrometry.net installation.
 %    See above for the additional arguments.
-%  WEB(as, file, ...)
-%    Explicitly use the http://nova.astrometry.net/ web service.
-%    See above for the additional arguments.
-%  WEB(as)
-%    For a solved image, the corresponding sky view is displayed on
-%    http://www.sky-map.org . The 'as' astrometry object must have been used
-%    to solve or import astrometry data.
 %
 %Using results:
 % - Once an image has been solved with the 'as' object, you can use the
@@ -74,7 +52,7 @@
 % - The annotation is done asynchronously, and the Matlab prompt is recovered.
 %   You may use getstatus(as) to inquire for the solve-plate status
 %   (running, success, failed).
-%   To wait for the end of the annotation, use waitfor(as). stop(as) aborts it.
+%   To wait for the end of the annotation, use as.wait. as.stop aborts it.
 % - as.result.RA and as.result.Dec provide the center coordinates of the
 %   field (in [deg]), while as.result.RA_hms and as.result.Dec_dms provide the
 %   'HH:MM:SS' and 'Deg:MM:SS' coordinates.
@@ -109,8 +87,7 @@
 %  solve     Solve an image field. Plot further results with IMAGE method.
 %  stop      Ends any current annotation and reset the object.
 %  visible   Return/display all visible objects on image.
-%  waitfor   Waits for completion of the annotation.
-%  web       Loads an image and identifies its objects using web service.
+%  wait      Waits for completion of the annotation.
 %  xy2sky    Convert pixel image coordinates to RA,Dec.
 %
 %Credit:
@@ -130,11 +107,11 @@ classdef Astrometry < handle
         data_fold = '' %folder with additional star catalogs
         overwrite = 1  %if output exists overwrite it or skip it
         blocking  = 0  %wait for file to finish before resuming
-        api_key   = 'kvfubnepntofzpcl' %web api-key for nova.astrometry.net, eg 'kvfubnepntofzpcl' 'ghqpqhztzychczjh' https://git.kpi.fei.tuke.sk/TP/ExplorationOfInterstellarObjects/blob/master/src/sk/tuke/fei/kpi/tp/eoio/AstrometryAPI.java
+        result   = []  %results from the annotation
+        Timer
     end
 
     properties (SetAccess = protected) %read only
-        result   = []  %results from the annotation, empty if failed
         status   = 'init' %can be: running, failed, success
         duration = duration();
     end
@@ -149,18 +126,8 @@ classdef Astrometry < handle
     properties (Constant = true)
         %executables = find_executables  %find installed programs
         solve_field = 'wsl solve-field'
-        sextractor
-        python = 'python.exe'
-        python3
+        sextracotr %improves performance
         wcs2kml
-        client_py = 'C:\MATLAB\astrometry.git\client.py'
-    end
-
-    events
-        annotationStart
-        annotationEnd
-        idle
-        busy
     end
 
     methods
@@ -309,55 +276,10 @@ classdef Astrometry < handle
             fprintf('Done\n')
         end
 
-        function obj = local(obj, file, varargin)
-            %Solve an image field using local 'solve-field'
-            % as.local(file,args)    see solve
-            %Example:
-            % astrometry().local('M33.jpg','scale-low',0.5,'scale-high',2)
-            if isempty(varargin) && ~isempty(obj.args)
-                varargin = obj.args;
-            end
-            [~,~] = solve(obj, file, 'solve-field', varargin{:});
-        end
-
-        function obj = web(obj,file,varargin)
-            %Solve an image field using the web API.
-            % as.web(file,args)    see solve
-            %Remarks:
-            % Once solved, the field is displayed on http://www.sky-map.org
-            %Example:
-            % astrometry().web('M33.jpg','scale-low',0.5,'scale-high',2)
-            if nargin == 1 && ~isempty(obj.result) && isstruct(obj.result)
-                % display a Sky-Map.org view of the astrometry field
-                sz = max([obj.result.RA_max-obj.result.RA_min obj.result.Dec_max-obj.result.Dec_min]);
-                z  = 160.*2.^(0:-1:-8); % zoom levels in deg in sky-map
-                z  = find(sz*4 > z, 1);
-                if isempty(z)
-                    z = 9;
-                end
-                url = sprintf(['http://www.sky-map.org/?ra=%f&de=%f&zoom=%d' ...
-                    '&show_grid=1&show_constellation_lines=1' ...
-                    '&show_constellation_boundaries=1' ...
-                    '&show_const_names=0&show_galaxies=1&img_source=DSS2'], ...
-                    obj.result.RA/15, obj.result.Dec, z);
-                % open in system browser
-                open_system_browser(url);
-            else
-                if isempty(varargin) && ~isempty(obj.args)
-                    varargin = obj.args;
-                end
-                if nargin < 2 || isempty(file)
-                    file = obj.file;
-                end
-                [~,~] = solve(obj, file, 'web', varargin{:});
-            end
-        end
-
-        function [out,file] = solve(obj,file,mode,varargin)
+        function [out,file] = solve(obj,file,varargin)
             %Solve an image field.
-            % as.solve(file)        image file to process
-            % as.solve(file,mode)     'local' 'web' (default:'local')
-            % as.solve(file,mode,arg)    name/value pair, eg
+            % as.solve(file)      image file to process
+            % as.solve(file,arg)    name/value pair, eg
             %   ra: approximate RA coordinate (deg or 'hh:mm:ss')
             %   dec: approximate DEC coordinate (deg or 'deg:mm:ss')
             %   radius: approximate field size (deg)
@@ -371,22 +293,14 @@ classdef Astrometry < handle
 
             % Defaults
             if nargin<2 || isempty(file), file = obj.file; end
-            if nargin<3 || isempty(mode), mode = 'local';  end
+               file = convertStringsToChars(file);
             out = []; %init output
 
             % Check status
-            if obj.ishold
+            if obj.Timer.Running=="on"
                 disp(' Current solver is RUNNING.')
                 return
             end
-
-            % Check setup
-            if strcmpi(mode,'web') && (isempty(obj.client_py) || isempty(obj.python))
-                error('Set client_py or python')
-            elseif isempty(obj.solve_field)
-                error('Set solve_field')
-            end
-            file = convertStringsToChars(file);
 
             % Write image data to file
             if isnumeric(file) && ~isempty(file)
@@ -406,7 +320,7 @@ classdef Astrometry < handle
             if iscell(file)
                 out = cell(size(file));
                 for k = 1:numel(file)
-                    out{k} = obj.solve(file{k}, mode, varargin{:});
+                    out{k} = obj.solve(file{k}, varargin{:});
                 end
                 return %finished batch mode
             end
@@ -454,47 +368,17 @@ classdef Astrometry < handle
             end
 
             % Build the command
-            if strcmpi(mode,'web')
-                % is there an API_KEY ? request it if missing...
-                if isempty(obj.api_key) && isempty(getenv('AN_API_KEY'))
-                    % request the API_KEY via a dialogue
-                    op.Resize      = 'on';
-                    op.WindowStyle = 'normal';
-                    op.Interpreter = 'tex';
-                    prompt = ['{\color{blue}Enter a nova.astrometry.net API key}' 10 ...
-                        '  (e.g. "slsratwckfdyxhjq")' 10 ...
-                        'Create an account at {\color{red}http://nova.astrometry.net} (free)' 10 ...
-                        'Connect to your account and click on the "{\color{blue}API}" tab to get the key' 10 ...
-                        'or define the {\color{blue}AN\_API\_KEY} environment variable'];
-                    answer = inputdlg( prompt, 'Input Astrometry.net API key', 1, {'slsratwckfdyxhjq'}, op);
-                    if isempty(answer)
-                        return
-                    end
-                    obj.api_key = answer{1};
-                end
-
-                cmd = [obj.python ' ' obj.client_py ' --wait'];
-                if ~isempty(obj.api_key)
-                    cmd = [cmd ' --apikey=' obj.api_key];
-                end
-                cmd = [cmd ' --upload='   file];
-                cmd = [cmd ' --annotate=' fullfile(fold, 'results.json')];
-                cmd = [cmd ' --newfits='  fullfile(fold, 'results.fits')];
-                cmd = [cmd ' --kmz='      fullfile(fold, 'results.kml')];
-                cmd = [cmd ' --corr='     fullfile(fold, 'results.corr')];
-            else
-                cmd = [obj.solve_field];
-                cmd = [cmd ' ' file];
-                if ~isempty(obj.sextractor)
-                    cmd = [cmd ' --use-sextractor']; % highly improves annotation efficiency
-                end
-                cmd = [cmd ' --dir '      fold];
-                cmd = [cmd ' --new-fits ' fullfile(fold, 'results.fits')];
-                cmd = [cmd ' --rdls '     fullfile(fold, 'results.rdls')];
-                cmd = [cmd ' --corr '     fullfile(fold, 'results.corr') ' --tag-all'];
-                if ~isempty(obj.wcs2kml)
-                    cmd = [cmd ' --kmz '      fullfile(fold, 'results.kml') ' --no-tweak'];
-                end
+            cmd = [obj.solve_field];
+            cmd = [cmd ' ' file];
+            if ~isempty(obj.sextractor)
+                cmd = [cmd ' --use-sextractor']; % highly improves annotation efficiency
+            end
+            cmd = [cmd ' --dir '      fold];
+            cmd = [cmd ' --new-fits ' fullfile(fold, 'results.fits')];
+            cmd = [cmd ' --rdls '     fullfile(fold, 'results.rdls')];
+            cmd = [cmd ' --corr '     fullfile(fold, 'results.corr') ' --tag-all'];
+            if ~isempty(obj.wcs2kml)
+                cmd = [cmd ' --kmz '      fullfile(fold, 'results.kml') ' --no-tweak'];
             end
             cmd = [cmd ' --wcs='      fullfile(fold, 'results.wcs')];
 
@@ -529,18 +413,10 @@ classdef Astrometry < handle
             if nargin > 3 && mod(numel(varargin), 2) == 0
                 for f = 1:2:numel(varargin)
                     if ischar(varargin{f})
-                        if isweb
-                            if strcmp(varargin{f}, 'scale-low')
-                                varargin{f}='scale-lower';
-                            elseif strcmp(varargin{f}, 'scale-high')
-                                varargin{f}='scale-upper';
-                            end
-                        else
-                            if strcmp(varargin{f}, 'scale-lower')
-                                varargin{f} = 'scale-low';
-                            elseif strcmp(varargin{f}, 'scale-upper')
-                                varargin{f} = 'scale-high';
-                            end
+                        if strcmp(varargin{f}, 'scale-lower')
+                            varargin{f} = 'scale-low';
+                        elseif strcmp(varargin{f}, 'scale-upper')
+                            varargin{f} = 'scale-high';
                         end
                         cmd = [cmd ' --' varargin{f} '=' num2str(varargin{f+1})];
                     end
@@ -548,25 +424,7 @@ classdef Astrometry < handle
             end
 
             % Execute command
-            fprintf('%s\n',cmd) %progress
-            obj.starttime = datetime;
-            obj.status = 'running';
-            obj.notify('busy');
-
-            % Create timer for auto update
-            if isempty(obj.timer) || ~isa(obj.timer,'timer') || ~isvalid(obj.timer)
-                obj.timer = timer('TimerFcn', @TimerCallback, 'Period', 5, 'ExecutionMode', 'fixedDelay', 'UserData', obj, 'Name', mfilename); %#ok<CPROPLC>
-            end
-            if strcmp(obj.timer.Running, 'off')
-                obj.timer.start
-            end
-
-            % Launch as non blocking command
-            obj.process_exe = java.lang.Runtime.getRuntime().exec(cmd);
-
-            % Wait for completion
-            obj.notify('annotationStart');
-            out = cmd;
+            obj.Timer = startcmd(cmd);
         end
 
         function ret = load(obj, d, varargin)
@@ -610,12 +468,6 @@ classdef Astrometry < handle
         function ret = getstatus(obj)
             %Return astrometry status, ie 'success' 'failed'
             ret = obj.status;
-        end
-
-        function tf = ishold(obj)
-            %Returns true when the solver is 'BUSY', false of 'IDLE'
-            %  tf = ishold
-            tf = ~isempty(obj.process_exe);
         end
 
         function fig = plot(obj, mag)
@@ -732,7 +584,7 @@ classdef Astrometry < handle
                     '<a href="matlab:image(' iname ');">plot</a>,' ...
                     '<a href="matlab:disp(' iname ');">more...</a>)'];
             end
-            if obj.ishold
+            if obj.Timer.Running=="on"
                 fprintf('%s = %s for "%s" BUSY\n',iname, id, obj.file)
             else
                 fprintf('%s = %s for "%s"\n',iname, id, obj.file)
@@ -946,35 +798,20 @@ classdef Astrometry < handle
 
         end
 
-        function waitfor(obj)
-            % WAITFOR Waits for completion of the annotation
-            while obj.ishold
-                pause(5)
+        function wait(obj)
+            % Waits for solve
+            while obj.Timer.Running=="on"
+                pause(1)
             end
         end
 
         function stop(obj)
-            % STOP Ends any current annotation and reset the object.
-            % clear the timer
-            if ~isempty(obj.timer) && isa(obj.timer, 'timer')
-                stop(obj.timer);
-                delete(obj.timer);
+            % Stop current solve
+            if ~isempty(obj.Timer)
+                obj.Timer.stop
+                obj.result = obj.Timer.UserData;
+                obj.Timer.delete
             end
-            obj.timer = [];
-            p = obj.process_exe;
-            if ~isempty(p) && isjava(p)
-                try
-                    p.destroy;
-                    disp([mfilename  ': abort current annotation...'])
-                end
-            end
-            obj.process_exe = [];
-            obj.status = 'failed';
-        end
-
-        function st = get_state(obj)
-            % GET_STATE Return the astrometry state, e.g. BUSY, FAILED, SUCCESS.
-            st = obj.status;
         end
 
         function [out,paths] = catalogs(obj,name)
@@ -1095,7 +932,7 @@ else
 
     % Searching for installed programs
     fprintf('Searching for available programs:\n') %progress
-    for exe = ["solve-field" "sextractor" "python" "python3" "wcs2kml" "client.py"] %try these programs
+    for exe = ["solve-field" "sextractor" "wcs2kml"] %try these programs
         for cmd = [fullfile(root_fold,exe+ext) fullfile(root_fold,exe) exe+ext exe] %try these calls
             if isfile(cmd)
                 err = 0;
@@ -1103,9 +940,6 @@ else
                 [err,~] = system(cmd_prefix + cmd + " --version"); %run from Matlab
             end
             name = regexprep(exe, {'-' '\.'}, '_');
-            if strcmp(name, 'python3')
-                name = 'python';
-            end
             if ~err %executable is found, possible errors 1,127,9009
                 executables.(name) = cmd;
                 break
@@ -1237,67 +1071,57 @@ else
 end
 end
 
+function varargout = startcmd(cmd,vrb)
+%Run a system command as a separate process, which can be monitored.
+% startcmd(cmd)       -start command
+% startcmd(cmd,vrb)   -verbose: 0=none, 1=show progress, 2=show results
+% T = startcmd(__)    -return timer for monitoring the process
+%
+%Remarks:
+%-If output T is returned then it is up to the user to delete the timer
+% when it is no longer required using T.delete
+%-Use T.UserData to access process output when the process ends.
+%-To stop the process prematurely use T.stop
+%
+%Example:
+% startcmd('ping localhost',2)  %start process with verbose=2
+%
+%Example:
+% T = startcmd('ping localhost');  %start process and return the timer
+% while T.Running=="on"
+%     pause(0.1)  %wait for process to finish
+% end
+% T.UserData  %process output
+% T.delete  %delete timer
 
-function TimerCallback(src, ~)
-% TimerCallback: update status/view from timer event
-obj = get(src, 'UserData');
-if isvalid(obj)
-    try
-        % check if any astrometry job is running
-        exitValue = 0;
-        if ~isempty(obj.process_java) && isjava(obj.process_java)
-            try
-                exitValue = obj.process_java.exitValue; % will raise error if process still runs
-                active  = 0;
-            catch ex %#ok<NASGU>
-                % still running
-                if isempty(obj.process_java) || ~isjava(obj.process_java)
-                    active  = 0;
-                else
-                    active  = 1;
-                end
-            end
-            % not active anymore: process has ended.
-            if ~active
-                if exitValue ~= 0
-                    obj.result = [];
-                    obj.status = 'failed';
-                else
-                    load(obj)
-                    if ~isempty(obj.result)
-                        obj.status = 'success';
-                    else
-                        obj.status = 'failed';
-                    end
-                end
-                disp([' annotation end: ' upper(obj.status) ' for ' obj.file '. exit value=' num2str(exitValue)]);
-                % clear the timer
-                stop(src);
-                delete(src);
-                obj.timer = [];
-                obj.process_java = [];
-                obj.duration = datetime - obj.starttime;
+if nargin<2 || isempty(vrb), vrb = 0; end
+delTimer = ~nargout; %delete timer when the process ends
 
-                obj.notify('annotationEnd');
-                obj.notify('idle');
-                if obj.autoplot
-                    obj.plot;
-                    assignin('base', 'ans', obj);
-                    out = obj;
-                    disp(out)
-                end
-                beep
-            end
+Proc = java.lang.Runtime.getRuntime.exec(cmd); %start process
+Timer = timer(TimerFcn=@Update,StopFcn=@Stop,ExecutionMode='fixedSpacing',Period=0.1); %timer to monitor the process
+Timer.start; %start timer
+
+if nargout
+    varargout = {Timer}; %return timer, if requested
+end
+
+    function Update(~,~)
+        if ~get(Proc,'Alive')
+            Timer.stop %stop the timer, which also calls the Stop function
         end
-    catch ex
-        getReport(ex)
     end
-else
-    delete(src)
-end
+
+    function Stop(~,~)
+        Proc.destroy %close java runtime
+        t = java.util.Scanner(java.io.InputStreamReader(Proc.getInputStream)).useDelimiter('\A').next; %read process output
+        Timer.UserData = regexprep(strtrim(char(t)),'\r',''); %save output to Timer.UserData
+        if vrb >= 1, fprintf('Finished: %s\n',cmd), end %show progress
+        if vrb >= 2, fprintf('%s\n',Timer.UserData), end %show output
+        if delTimer, Timer.delete, end %delete timer
+    end
 end
 
-% Solve the given astrophotography image with local or web method.
+% Solve the given astrophotography image.
 % Then plot the result. Additional arguments may include name/value pairs
 % (see example below):
 %
@@ -1348,15 +1172,8 @@ end
 % Return information about a named object (star, deep sky object) from the
 % data base. Example: astrometry().findobj('M33')
 %
-%    **as.local(file, ...);**
+%    **as.solve(file, ...);**
 %
-% Explicitly use the local astrometry.net installation.
-% See above for the additional arguments.
-%
-%    **as.web(file, ...);**
-%
-% Explicitly use the http://nova.astrometry.net/ web service.
-% See above for the additional arguments.
 %
 %
 % Using results <a id=using-results></a>
@@ -1411,8 +1228,7 @@ end
 % - solve     solve an image field. Plot further results with IMAGE method.
 % - stop      ends any current annotation and reset the object.
 % - visible   return/display all visible objects on image
-% - waitfor   waits for completion of the annotation
-% - web       loads an image and identifies its objects using web service
+% - wait      waits for completion of the annotation
 % - xy2sky    convert pixel image coordinates to RA,Dec
 %
 % Installation <a id=installation></a>
@@ -1430,17 +1246,6 @@ end
 %
 % If you have images spanning on very tiny areas (e.g. much smaller than a
 % degree), you will most probably need to install the '2MASS' data base.
-%
-%    **Using the web service**
-%
-%  You will need Python to be installed, and to have a 'NOVA astrometry API' key.
-%  Enter the API_KEY when prompt, or set it with:
-%
-%  ```matlab
-%   as = astrometry;
-%   as.api_key = 'blah-blah';
-%   as.web(file, ...)
-%  ```
 %
 %    **Matlab files**
 %
