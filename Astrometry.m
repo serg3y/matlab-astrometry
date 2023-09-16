@@ -2,9 +2,9 @@
 %installed <a href=http://astrometry.net>astrometry.net</a> software.
 %
 %Setup:
-%-Download this code from: https://github.com/serg3y/matlab-astrometry
-%-Add main folder to MatLab path: addpath <path>/matlab-astrometry/
-%-Run: astrometry().setup
+%-Download this code: https://github.com/serg3y/matlab-astrometry
+%-Add folder to MatLab path: addpath <path>/matlab-astrometry/
+%-Run: setup_Astrometry
 %
 %-Test2:
 % Astrometry().solve('D:\MatLab\matlabtoolbox.git\data\DSTG_VIS_500\32711_NAVSTAR_62_USA_201\20201214_143228.fit')
@@ -81,7 +81,7 @@
 %  getstatus Return the astrometry status (success, failed).
 %  image     Show the solve-plate image with annotations.
 %  load      Load astrometry files (WCS,FITS) from a directory.
-%  local     Loads an image and identifies its objects using local solve-field
+%  solve     Loads an image and plate solve it.
 %  plot      Show the solve-plate image with annotations. Same as image.
 %  sky2xy    Convert RA,Dec coordinates to x,y pixels on image
 %  solve     Solve an image field. Plot further results with IMAGE method.
@@ -149,131 +149,6 @@ classdef Astrometry < handle
                 %https://github.com/microsoft/WSL/issues/4607#issuecomment-1197258447
                 %to restore use: setenv('WSL_UTF8','')
             end
-        end
-
-        function setup(~,fov)
-            %Auto install WSL, Ubuntu, Astrometry.net for Windows 10/11.
-            % astrometry().setup
-            %
-            %Manual install:
-            %-Install Ubuntu using windows command line:
-            % wsl --install           %installs the default distro (probably Ubuntu)
-            % wsl --install Ubuntu -n %install Ubuntu but do not launch it
-            % Note: If windows does ont have update 22H2 it may not have WSL feature.
-            % Note: "wsl --install" may need to be run before other commands work.
-            %-Reboot computer after installing Ubuntu
-            %-Install astrometry.net, from Ubuntu run:
-            % sudo apt udate                    %required for next step
-            % sudo apt install astrometry.net   %install astrometry software
-            %-Download index files down to 10% of the FOV, eg 5' for 0.8° FOV:
-            % sudo apt install astrometry.net astrometry-data-2mass-08-19  %156MB
-            % sudo apt install astrometry.net astrometry-data-2mass-07     %161MB
-            % sudo apt install astrometry.net astrometry-data-2mass-06     %328MB
-            % sudo apt install astrometry.net astrometry-data-2mass-05     %659MB
-            % Note: This downloads the 4200-series from: http://data.astrometry.net
-            %       The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
-            %       The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
-            %-Install Source-Extractor software (optional, not used at the moment):
-            % sudo apt install sextractor
-            %-Test (optional):
-            % !bash -c "solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2"
-            % !wsl  -e  solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
-            % !wsl      solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
-            %-Ref:
-            % https://www.hnsky.org/linux_subsyst.htm
-            % https://github.com/Jusas/astrometry-api-lite#installation
-            % https://learn.microsoft.com/en-us/windows/wsl/install
-            % https://packages.debian.org/source/bookworm/astrometry-data-2mass
-            % http://data.astrometry.net/
-
-            if nargin<2 || ismept(fov), fov = 0.86; end
-
-            % Install WSL
-            fprintf('Installing WSL\n')
-            [err,msg] = system('wsl --status');
-            if err==50
-                [err,msg] = system('wsl --install --no-launch');
-            end
-            if err && contains(msg,'is not recognized')
-                error('%s\n%s\n%s\n%s\n',msg,...
-                    'Windows update 22H2 may be needed to run WSL.',...
-                    'If Windows update 22H2 is failing perform the install using:',...
-                    'https://www.microsoft.com/en-au/software-download/windows10')
-            elseif err
-                error('%s\n',msg)
-            end
-
-            % Install Ubuntu
-            fprintf('Installing Ubuntu\n')
-            [err,msg] = system('wsl --install Ubuntu --no-launch');
-            if ~err
-                [err,msg] = system('wsl --set-default Ubuntu'); %make Ubuntu the default
-            end
-            if err
-                error(msg)
-            end
-
-            % Check BIOS
-            fprintf('Checking BIOS virtualization\n')
-            [err,msg] = system('wsl --list'); %indirect test
-            if err==-1 && contains(msg,'no installed distributions')
-                error('%s\n%s\n%s\n%s\n','Error: CPU Virtualization may be turned off in BIOS.',...
-                ' To confirm BIOS is the problem run: system("wsl --install &")',... should see: WslRegisterDistribution failed with error: 0x80370102, Please enable the Virtual Machine Platform Windows feature and ensure virtualization is enabled in the BIOS...
-                ' Example HP Z8 fix: restart > F1 > Esc > Bios Setup > Security >',...
-                ' > System Security > Enable "Virtualisation Technology (VTx)"')
-            elseif err
-                error(msg)
-            end
-
-            % Install Astrometry.net
-            fprintf('%s\n','Installing astrometry.net to /usr/bin/solve-field within C:\Program Files\WindowsApps\')
-            [err,msg] = system('bash -c "sudo apt update"'); %may be required for next step
-            if ~err
-                [err,msg] = system('bash -c "sudo apt install astrometry.net -y"'); %install astrometry.net
-                [~,t] = system('bash -c "dpkg -L astrometry.net | xargs file | grep executable | sed s/:.*//"'); %get all executables
-                fprintf(' Executables: %s\n',regexprep(t,{'/usr/bin/','\n'},{'' '  '})) %list executables
-                % an-fitstopnm  an-pnmtofits  astrometry-engine
-                % build-astrometry-index  downsample-fits  fit-wcs
-                % fits-column-merge  fits-flip-endian  fits-guess-scale
-                % fitsgetext  get-healpix  get-wcs  hpsplit  image2xy
-                % new-wcs  pad-file  plot-constellations  plotquad  plotxy 
-                % query-starkd  solve-field  subtable  tabsort  wcs-grab
-                % wcs-match  wcs-pv2sip  wcs-rd2xy  wcs-resample
-                % wcs-to-tan wcs-xy2rd  wcsinfo
-            end
-            if err
-                error(msg)
-            end
-
-            % Download index files
-            fprintf('Downloading index files: 4200-series for %g° fields from http://data.astrometry.net\n',fov)
-            %The 5200-Lite may be better, its based on GAIA DR2 and Tycho2
-            %The 5200-Heave includes G/BP/RP mags, proper motions, parallaxes
-            arcmin = floor(fov/10*60); %it is recommended to get 10% of the FOV, so 5 arcmin for 0.86° fov
-            if ~err && arcmin <= 19
-                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-08-19 -y'); %156MB
-            end
-            if ~err && arcmin <= 7 
-                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-07 -y'); %161MB
-            end
-            if ~err && arcmin <= 6
-                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-06 -y'); %328MB
-            end
-            if ~err && arcmin <= 5
-                [err,msg] = system('wsl sudo apt install astrometry.net astrometry-data-2mass-05 -y'); %659MB
-            end
-            if err
-                error(msg)
-            end
-
-            % Install Source-Extractor
-            fprintf('Installing Source-Extractor\n')
-            [err,msg] = system('bash -c "sudo apt install sextractor"');
-            if err
-                error(msg)
-            end
-
-            fprintf('Done\n')
         end
 
         function [out,file] = solve(obj,file,varargin)
@@ -839,18 +714,14 @@ classdef Astrometry < handle
                 end
             end
         end
-
     end
-
 end
-
 
 function out = getresult(d, obj)
 % getresult: extract WCS and star matching information from the output files.
 %
 % input:
 %   d: directory where astrometry.net results are stored.
-
 out = [];
 for file = {'results.wcs' 'wcs.fits'}
     if exist(fullfile(d, file{1}), 'file')
@@ -912,50 +783,8 @@ if ~isempty(out)
 end
 end
 
-
-function executables = find_executables
-% locate executables, return a structure
-
-persistent executables_cache % stored here so that they are not searched for further calls
-
-if ~isempty(executables_cache)
-    executables = executables_cache;
-else
-    if     ismac,  cmd_prefix = 'DYLD_LIBRARY_PATH= ;';
-    elseif isunix, cmd_prefix = 'LD_LIBRARY_PATH= ; ';
-    else,          cmd_prefix = '';
-    end
-    if ispc, ext = '.exe';
-    else,    ext = '';      %linux
-    end
-    root_fold = fileparts(mfilename('fullpath'));
-
-    % Searching for installed programs
-    fprintf('Searching for available programs:\n') %progress
-    for exe = ["solve-field" "sextractor" "wcs2kml"] %try these programs
-        for cmd = [fullfile(root_fold,exe+ext) fullfile(root_fold,exe) exe+ext exe] %try these calls
-            if isfile(cmd)
-                err = 0;
-            else
-                [err,~] = system(cmd_prefix + cmd + " --version"); %run from Matlab
-            end
-            name = regexprep(exe, {'-' '\.'}, '_');
-            if ~err %executable is found, possible errors 1,127,9009
-                executables.(name) = cmd;
-                break
-            else
-                executables.(name) = [];
-            end
-        end
-        fprintf(' %12s: %s\n', exe, executables.(name)) %progress
-    end
-    executables_cache = executables; %cache results
-end
-end
-
 function [ra_h, ra_min, ra_s] = getra(ra, asstring)
 % getra: convert any input RA (in hours) into h and min
-
 if nargin < 2 || isempty(asstring), asstring = false; end
 if ischar(ra)
     ra = repradec(ra);
@@ -1001,7 +830,6 @@ end
 
 function [dec_deg, dec_min, dec_s] = getdec(dec, asstring)
 % Convert any input DEC into deg and min
-
 if nargin < 2 || isempty(asstring), asstring = false; end
 if ischar(dec)
     dec = repradec(dec);
@@ -1051,74 +879,6 @@ for rep = {'h' 'm' 's' ':' '°' 'deg' 'd' '''' '"'}
     str = strrep(str, rep{1}, ' ');
 end
 str = str2num(str);
-end
-
-function ret = open_system_browser(url)
-% opens URL with system browser. Returns non zero in case of error.
-if strncmp(url, 'file://', length('file://'))
-    url = url(8:end);
-end
-if ismac,      precmd = 'DYLD_LIBRARY_PATH= ;';
-elseif isunix, precmd = 'LD_LIBRARY_PATH= ; ';
-else,          precmd = '';
-end
-if ispc
-    ret = system([precmd 'start "' url '"']);
-elseif ismac
-    ret = system([precmd 'open "' url '"']);
-else
-    [ret,~] = system([precmd 'xdg-open "' url '"']);
-end
-end
-
-function varargout = startcmd(cmd,vrb)
-%Run a system command as a separate process, which can be monitored.
-% startcmd(cmd)       -start command
-% startcmd(cmd,vrb)   -verbose: 0=none, 1=show progress, 2=show results
-% T = startcmd(__)    -return timer for monitoring the process
-%
-%Remarks:
-%-If output T is returned then it is up to the user to delete the timer
-% when it is no longer required using T.delete
-%-Use T.UserData to access process output when the process ends.
-%-To stop the process prematurely use T.stop
-%
-%Example:
-% startcmd('ping localhost',2)  %start process with verbose=2
-%
-%Example:
-% T = startcmd('ping localhost');  %start process and return the timer
-% while T.Running=="on"
-%     pause(0.1)  %wait for process to finish
-% end
-% T.UserData  %process output
-% T.delete  %delete timer
-
-if nargin<2 || isempty(vrb), vrb = 0; end
-delTimer = ~nargout; %delete timer when the process ends
-
-Proc = java.lang.Runtime.getRuntime.exec(cmd); %start process
-Timer = timer(TimerFcn=@Update,StopFcn=@Stop,ExecutionMode='fixedSpacing',Period=0.1); %timer to monitor the process
-Timer.start; %start timer
-
-if nargout
-    varargout = {Timer}; %return timer, if requested
-end
-
-    function Update(~,~)
-        if ~get(Proc,'Alive')
-            Timer.stop %stop the timer, which also calls the Stop function
-        end
-    end
-
-    function Stop(~,~)
-        Proc.destroy %close java runtime
-        t = java.util.Scanner(java.io.InputStreamReader(Proc.getInputStream)).useDelimiter('\A').next; %read process output
-        Timer.UserData = regexprep(strtrim(char(t)),'\r',''); %save output to Timer.UserData
-        if vrb >= 1, fprintf('Finished: %s\n',cmd), end %show progress
-        if vrb >= 2, fprintf('%s\n',Timer.UserData), end %show output
-        if delTimer, Timer.delete, end %delete timer
-    end
 end
 
 % Solve the given astrophotography image.
