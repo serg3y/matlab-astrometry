@@ -237,10 +237,7 @@ classdef Astrometry < handle
             fold = obj.process_dir;
 
             % Convert to unix path
-            if 1 %HACK
-                file = regexprep(file,'C:\','mnt/c/');
-                file = regexprep(file,'\','/');
-            end
+            file = unixpath(file);
 
             % Build the command
             cmd = [obj.solve_field];
@@ -715,6 +712,14 @@ classdef Astrometry < handle
             end
         end
     end
+end
+
+% HELPER FUNCTIONS
+
+function unix = unixpath(win)
+%Converts win path to unix, supports spaces
+%ie C:\Program Files > /mnt/c/Program\ Files
+unix = regexprep(win,{'^(.):' '\' ' '},{'/mnt/${lower($1)}' '/' '\\ '}); 
 end
 
 function out = getresult(d, obj)
