@@ -1,13 +1,24 @@
-%This class can plate solve astrophotography images by running localy
-%installed <a href=http://astrometry.net>astrometry.net</a> software.
+%A wrapper for running localy installed <a href=http://astrometry.net>astrometry.net</a> software.
 %
 %Setup:
 %-Download this code: https://github.com/serg3y/matlab-astrometry
-%-Add folder to MatLab path: addpath <path>/matlab-astrometry/
-%-Run: setup_Astrometry
-%
-%-Test2:
-% Astrometry().solve('D:\MatLab\matlabtoolbox.git\data\DSTG_VIS_500\32711_NAVSTAR_62_USA_201\20201214_143228.fit')
+%-Run setup_Astrometry.m to install WSL, Abuntu and SourceExtractor.
+%Test:
+% cd C:\MATLAB\matlabtoolbox\data
+% Astrometry().solve('test.fit')
+% !wsl solve-field /mnt/c/MATLAB/matlabtoolbox/data/test.fit --dir C:\Users\Serge\AppData\Local\Temp\tpa2e0679d_59b7_43f1_bf46_a9f57f510a68 --new-fits C:\Users\Serge\AppData\Local\Temp\tpa2e0679d_59b7_43f1_bf46_a9f57f510a68\results.fits --rdls C:\Users\Serge\AppData\Local\Temp\tpa2e0679d_59b7_43f1_bf46_a9f57f510a68\results.rdls --corr C:\Users\Serge\AppData\Local\Temp\tpa2e0679d_59b7_43f1_bf46_a9f57f510a68\results.corr --tag-all --wcs=C:\Users\Serge\AppData\Local\Temp\tpa2e0679d_59b7_43f1_bf46_a9f57f510a68\results.wcs'
+
+%Example: Old
+% observationPipeline('C:\MATLAB\matlabtoolbox\data\DSTG_VIS_500') > astronet_solve_field
+% AstrometryLoc     = 'C:\cygwin64\usr\local\astrometry\bin\',
+% ArcsecPerPixel    = 1.4600
+% fitsFile          = "C:\MATLAB\matlabtoolbox\data\test.fit"
+% dotsXyFile        = "C:\MATLAB\matlabtoolbox\data\DSTG_VIS_500_obs\32711_NAVSTAR_62_USA_201\20201214_143303_dots.xyls"
+% outputDirectory   = "C:\MATLAB\matlabtoolbox\data\DSTG_VIS_500_obs\32711_NAVSTAR_62_USA_201\"
+% solveFieldFile    = "20201214_143303_stars"
+% astronet_solve_field(AstrometryLoc,ArcsecPerPixel,fitsFile,dotsXyFile,outputDirectory,solveFieldFile)
+% !C:\cygwin64\usr\local\astrometry\bin\\solve-field --dir 'C:\MATLAB\matlabtoolbox\data\DSTG_VIS_500_obs\32711_NAVSTAR_62_USA_201\' --out '20201214_143228_stars' --no-plots --overwrite --width 2048 --height 2048 --ra 34.7548 --dec 19.9121 --radius 2 --scale-units arcsecperpix --scale-low 1.455 --scale-high 1.465 --x-column X --y-column Y 'C:\MATLAB\matlabtoolbox\data\DSTG_VIS_500_obs\32711_NAVSTAR_62_USA_201\\20201214_143228_dots.xyls' --odds-to-solve 1000000000
+
 %
 %Basic usage:
 % as = Astrometry %create a solver, but do not solve
@@ -108,6 +119,8 @@ classdef Astrometry < handle
         overwrite = 1  %if output exists overwrite it or skip it
         blocking  = 0  %wait for file to finish before resuming
         result   = []  %results from the annotation
+        useSextractor = 1;
+        makeKml = 1;
         Timer
     end
 
@@ -123,13 +136,6 @@ classdef Astrometry < handle
         starttime   = []
     end
 
-    properties (Constant = true)
-        %executables = find_executables  %find installed programs
-        solve_field = 'wsl solve-field'
-        sextracotr %improves performance
-        wcs2kml
-    end
-
     methods
         function obj = Astrometry(varargin)
             %Initialise the class.
@@ -143,11 +149,7 @@ classdef Astrometry < handle
                 obj.(varargin{k}) = varargin{k+1};
             end
             if ispc
-                setenv('WSL_UTF8','1')
-                %Without this system('wsl') return nulls
-                %which causes output text to not display
-                %https://github.com/microsoft/WSL/issues/4607#issuecomment-1197258447
-                %to restore use: setenv('WSL_UTF8','')
+                setenv('WSL_UTF8','1') %by default system('wsl') return nulls which causes output text to not display, see also https://github.com/microsoft/WSL/issues/4607#issuecomment-1197258447
             end
         end
 
@@ -172,7 +174,7 @@ classdef Astrometry < handle
             out = []; %init output
 
             % Check status
-            if obj.Timer.Running=="on"
+            if ~isempty(obj.Timer) && obj.Timer.Running=="on"
                 disp(' Current solver is RUNNING.')
                 return
             end
@@ -240,16 +242,15 @@ classdef Astrometry < handle
             file = unixpath(file);
 
             % Build the command
-            cmd = [obj.solve_field];
-            cmd = [cmd ' ' file];
-            if ~isempty(obj.sextractor)
-                cmd = [cmd ' --use-sextractor']; % highly improves annotation efficiency
+            cmd = ['wsl solve-field ' file];
+            if ~isempty(obj.useSextractor)
+                cmd = [cmd ' --use-sextractor']; %use Source-Extractor to detect stars
             end
             cmd = [cmd ' --dir '      fold];
             cmd = [cmd ' --new-fits ' fullfile(fold, 'results.fits')];
             cmd = [cmd ' --rdls '     fullfile(fold, 'results.rdls')];
             cmd = [cmd ' --corr '     fullfile(fold, 'results.corr') ' --tag-all'];
-            if ~isempty(obj.wcs2kml)
+            if ~isempty(obj.makeKml)
                 cmd = [cmd ' --kmz '      fullfile(fold, 'results.kml') ' --no-tweak'];
             end
             cmd = [cmd ' --wcs='      fullfile(fold, 'results.wcs')];
@@ -296,45 +297,7 @@ classdef Astrometry < handle
             end
 
             % Execute command
-            obj.Timer = startcmd(cmd);
-        end
-
-        function ret = load(obj, d, varargin)
-            %Load astrometry files (WCS,FITS) from a directory
-            %  LOAD(astrometry, directory);
-            %  The directory may contain WCS, CORR, RDLS or JSON, and image.
-            %  No solve plate is performed, only data is read.
-            %
-            %  LOAD(astrometry, image, ...) starts solve-plate annotation, same as SOLVE.
-            if nargin < 2
-                d = obj.process_dir;
-            end
-            if ~isfolder(d)
-                % loading an image ?
-                try
-                    % im = imread(d);
-                    solve(obj, d, varargin{:});
-                    return
-                end
-            end
-
-            obj.result = getresult(d, obj);
-            if isempty(obj.result)
-                obj.status = 'failed';
-                obj.process_exe = [];
-            else
-                obj.status = 'success';
-                % is the image available ? use one from the directory
-                if ~exist(obj.file, 'file')
-                    % search in the result directory
-                    d = [dir(fullfile(obj.result.dir, '*.png')); dir(fullfile(obj.result.dir, '*.fits'))];
-                    if ~isempty(d)
-                        d = d(1);
-                        obj.file = fullfile(obj.result.dir, d.name);
-                    end
-                end
-            end
-            ret = obj.result;
+            startcmd(cmd)
         end
 
         function ret = getstatus(obj)

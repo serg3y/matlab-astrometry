@@ -1,5 +1,5 @@
 function setup_Astrometry(fov)
-%Auto install WSL, Ubuntu, Astrometry.net for Windows 10/11.
+%Auto install WSL, Ubuntu, Astrometry.net for Windows 10.
 % setup_Astrometry(fov)
 %
 %Manual install:
@@ -24,7 +24,6 @@ function setup_Astrometry(fov)
 % sudo apt install sextractor
 %-Test (optional):
 % !bash -c "solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2"
-% !wsl  -e  solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
 % !wsl      solve-field /mnt/c/MatLab/matlabtoolbox.git/data/DSTG_VIS_500/32711_NAVSTAR_62_USA_201/20201214_143228.fit --overwrite --downsample 2
 %-Ref:
 % https://www.hnsky.org/linux_subsyst.htm
@@ -33,7 +32,9 @@ function setup_Astrometry(fov)
 % https://packages.debian.org/source/bookworm/astrometry-data-2mass
 % http://data.astrometry.net/
 
+% Defaults
 if nargin<2 || ismept(fov), fov = 0.86; end
+fold = fileparts(mfilename('fullpath'));
 
 % Install WSL
 fprintf('Installing WSL\n')
@@ -73,20 +74,20 @@ elseif err
 end
 
 % Install Astrometry.net
+%In WSL install to /usr/bin/source-extractor
+%Which is somwehere in C:\Program Files\WindowsApps
 fprintf('%s\n','Installing astrometry.net to /usr/bin/solve-field within C:\Program Files\WindowsApps\')
 [err,msg] = system('bash -c "sudo apt update"'); %may be required for next step
 if ~err
-    [err,msg] = system('bash -c "sudo apt install astrometry.net -y"'); %install astrometry.net
-    [~,t] = system('bash -c "dpkg -L astrometry.net | xargs file | grep executable | sed s/:.*//"'); %get all executables
+    [err,msg] = system('wsl sudo apt install astrometry.net -y'); %install astrometry.net
+    [~,t] = system('bash -c "dpkg -L astrometry.net | xargs file | grep executable | sed s/:.*//"'); %get all executables, wsl not working
     fprintf(' Executables: %s\n',regexprep(t,{'/usr/bin/','\n'},{'' '  '})) %list executables
-    % an-fitstopnm  an-pnmtofits  astrometry-engine
-    % build-astrometry-index  downsample-fits  fit-wcs
-    % fits-column-merge  fits-flip-endian  fits-guess-scale
-    % fitsgetext  get-healpix  get-wcs  hpsplit  image2xy
-    % new-wcs  pad-file  plot-constellations  plotquad  plotxy
-    % query-starkd  solve-field  subtable  tabsort  wcs-grab
-    % wcs-match  wcs-pv2sip  wcs-rd2xy  wcs-resample
-    % wcs-to-tan wcs-xy2rd  wcsinfo
+    %Executables: an-fitstopnm an-pnmtofits astrometry-engine
+    % build-astrometry-index downsample-fits fit-wcs fits-column-merge
+    % fits-flip-endian fits-guess-scale fitsgetext get-healpix get-wcs
+    % hpsplit image2xy new-wcs pad-file plot-constellations plotquad plotxy
+    % query-starkd solve-field subtable tabsort wcs-grab wcs-match
+    % wcs-pv2sip wcs-rd2xy wcs-resample wcs-to-tan wcs-xy2rd wcsinfo
 end
 if err
     error(msg)
@@ -115,7 +116,7 @@ end
 
 % Install Source-Extractor
 fprintf('Installing Source-Extractor\n')
-[err,msg] = system('bash -c "sudo apt install sextractor"');
+[err,msg] = system('wsl sudo apt install sextractor');
 if err
     error(msg)
 end
